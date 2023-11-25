@@ -93,5 +93,4 @@ collisions #(DT, POSITION_SIZE, NUM_OBSTACLES, NUM_VERTICES) collisions_handler 
 		endcase
 	end
   end
-
 endmodule
