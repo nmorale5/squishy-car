@@ -74,8 +74,12 @@ assign {obstacles[0][3][0],obstacles[1][3][0]} = {8'd100, 8'b0};
     #10;
     rst_in = 0;
     begin_update = 1;
-    pos_x = 10;
-    pos_y = 10;
+    pos_x = 2;
+    pos_y = 3;
+    vel_x = -2;
+    vel_y = 0;
+    #10
+    begin_update = 0;
 
     #100
 
