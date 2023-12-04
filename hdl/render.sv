@@ -47,8 +47,8 @@ module render # (
   input wire signed [WORLD_BITS-1:0] car_wheel_2_ys_in [CAR_WHEEL_VERTICES],
   input wire signed [WORLD_BITS-1:0] obstacles_xs_in [MAX_OBSTACLES_ON_SCREEN] [OBSTACLE_MAX_VERTICES],
   input wire signed [WORLD_BITS-1:0] obstacles_ys_in [MAX_OBSTACLES_ON_SCREEN] [OBSTACLE_MAX_VERTICES],
-  input wire [$clog2(OBSTACLE_MAX_VERTICES+1)-1:0] polygons_num_sides_in [MAX_OBSTACLES_ON_SCREEN],
-  input wire [$clog2(MAX_OBSTACLES_ON_SCREEN+1)-1:0] num_polygons_in,
+  input wire [$clog2(OBSTACLE_MAX_VERTICES+1)-1:0] obstacles_num_sides_in [MAX_OBSTACLES_ON_SCREEN],
+  input wire [$clog2(MAX_OBSTACLES_ON_SCREEN+1)-1:0] num_obstacles_in,
   input wire [3:0] colors_in [MAX_OBSTACLES_ON_SCREEN],
   output logic [23:0] color_out
 );
@@ -76,7 +76,7 @@ module render # (
         .camera_y_in(camera_y_in),
         .xs_in(obstacles_xs_in[p]), // points of polygon in order
         .ys_in(obstacles_ys_in[p]),
-        .num_points_in(polygons_num_sides_in[p]), // from 3 to 31
+        .num_points_in(obstacles_num_sides_in[p]), // from 3 to 31
         .edge_out(edge_valids[p]),
         .fill_out(fill_valids[p])
       );
@@ -155,7 +155,7 @@ module render # (
         color_idx = edge_valids[i] ? EDGE_COLOR : (fill_valids[i] ? CAR_WHEEL_COLOR : color_idx);
       end else if (i == 2) begin
         color_idx = edge_valids[i] ? EDGE_COLOR : (fill_valids[i] ? CAR_BODY_COLOR : color_idx);
-      end else if (i < num_polygons_in) begin
+      end else if (i < num_obstacles_in) begin
         color_idx = edge_valids[i] ? EDGE_COLOR : (fill_valids[i] ? colors_in[i] : color_idx);
       end else begin
         color_idx = color_idx;
