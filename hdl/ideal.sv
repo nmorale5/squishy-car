@@ -2,47 +2,76 @@ module ideal #(NUM_NODES = 10, POSITION_SIZE=8, VELOCITY_SIZE=8, FORCE_SIZE=8)(
   input  wire clk_in,
   input  wire rst_in,
   input  wire input_valid,
-  input wire [POSITION_SIZE-1:0] com_x,
-  input wire [POSITION_SIZE-1:0] com_y,
+  input  wire signed [POSITION_SIZE-1:0] axle [1:0],
+  input  wire signed [VELOCITY_SIZE-1:0] axle_velocity [1:0],
   input  wire signed [POSITION_SIZE-1:0] nodes [1:0][NUM_NODES],
   input  wire signed [POSITION_SIZE-1:0] ideal [1:0][NUM_NODES],
   input  wire signed [VELOCITY_SIZE-1:0] velocities [1:0][NUM_NODES],
   output logic signed [FORCE_SIZE-1:0] ideal_forces [1:0][NUM_NODES],
+  output logic signed [FORCE_SIZE-1:0] axle_force [1:0],
   output logic output_valid
   
 );
 
+logic signed [FORCE_SIZE-1:0] spring_forces [1:0][NUM_NODES];
+logic begin_springs, springs_done;
+logic [$clog2(NUM_NODES)-1:0] springs [1:0][NUM_NODES];
+logic signed [POSITION_SIZE-1:0] rotated_ideal [1:0][NUM_NODES];
 
 
+//might have force go the opposite way
+ideal_springs #(NUM_NODES, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) springs_instance (
+  .clk_in(clk_in),
+  .rst_in(rst_in),
+  .input_valid(begin_springs),
+  .nodes(nodes),
+  .ideal_nodes(rotated_ideal),
+  .velocities(velocities),
+  .axle_velocity(axle_velocity),
+  .spring_forces(spring_forces),
+  .axle_force(axle_force),
+  .output_valid(springs_done)
+);
 
-typedef enum {IDLE = 0, CALCULATE = 1, RESULT = 2} ideal_state;
-
-  input  wire [$clog2(NUM_NODES)-1:0] springs [1:0][NUM_SPRINGS],
-
+typedef enum {IDLE = 0, THETA = 1, ROTATION = 2, SPRINGS = 3, RESULT=4} ideal_state;
+ideal_state state = IDLE;
 logic signed [FORCE_SIZE-1:0] k;
 logic signed [FORCE_SIZE-1:0] b;
+logic [POSITION_SIZE-1:0] actual_node;
+logic [POSITION_SIZE-1:0] ideal_node;
+logic [POSITION_SIZE * NUM_NODES] cross_sum; //fix size later
+logic [POSITION_SIZE * NUM_NODES] dot_sum; //fix size later
 
 assign k = 5;
 assign b = 1;
 
 assign cross_product = actual_node[0] * ideal_node[1] - actual_node[1] * ideal_node[0];
 assign dot_product = actual_node[0] * ideal_node[0] + actual_node[1] * ideal_node[1];
-logic [$clog2(NUM_NODES)-1:0] current_node;
+logic [$clog2(NUM_NODES):0] current_node;
+
+//for testing
+logic [POSITION_SIZE-1:0] ax, ay, bx, by;
+assign ax = actual_node[0];
+assign ay = actual_node[1];
+assign bx = nodes[0][3];
+assign by = nodes[1][3];
+assign rotated_ideal = ideal;
+
 //calculate tan(theta), rotate, springs
 always_ff @(posedge clk_in) begin
     case(state)
         IDLE: begin
         
-          output_valid <= 1;
+          output_valid <= 0;
           if (input_valid == 1) begin
-            state <= THETA
+            state <= THETA;
             current_node <= 1;
             cross_sum <= 0;
             dot_sum <= 0;
             actual_node[0] <= nodes[0][0];
             actual_node[1] <= nodes[1][0];
-            ideal_node[0] <= ideal[0][1] + com_x;
-            ideal_node[1] <= ideal[1][1] + com_y;
+            ideal_node[0] <= ideal[0][1] + axle[0];
+            ideal_node[1] <= ideal[1][1] + axle[1];
 
           end
         end
@@ -56,17 +85,26 @@ always_ff @(posedge clk_in) begin
                 
                 actual_node[0] <= nodes[0][current_node];
                 actual_node[1] <= nodes[1][current_node];
-                ideal_node[0] <= ideal[0][current_node] + com_x;
-                ideal_node[1] <= ideal[1][current_node] + com_y;
+                ideal_node[0] <= ideal[0][current_node] + axle[0];
+                ideal_node[1] <= ideal[1][current_node] + axle[1];
             end
         end
         ROTATION: begin
             //rotate the ideal shape
+            state <= SPRINGS;
+            begin_springs <= 1;
 
 
         end
-        SPRINGS:
-            //apply the spring forces
+        SPRINGS: begin
+            //apply the spring forces with ideal shifted to axle position
+            //ideal should have a com of 0
+            begin_springs <= 0;
+            if (springs_done) begin
+              state <= RESULT;
+            end
+
+        end
         RESULT: begin
           state <= IDLE;
           output_valid <= 1;
@@ -77,7 +115,7 @@ always_ff @(posedge clk_in) begin
 end
 endmodule
 
-
+/*
 module InverseSqrtInteger (
   input wire signed [WIDTH-1:0] x,
   output wire signed [WIDTH-1:0] result
@@ -142,3 +180,4 @@ always_ff @(posedge clk_in) begin
 end
 
 endmodule
+*/

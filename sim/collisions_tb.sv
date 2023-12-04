@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `default_nettype none
 //comment here
-module update_point_tb();
+module collisions_tb();
   logic rst_in;
 
   logic clk_in;
@@ -43,7 +43,7 @@ module update_point_tb();
   logic begin_update, result_out;
   logic signed [ACCELERATION_SIZE-1:0] acceleration_x, acceleration_y;
 
-  update_point #(dt, POSITION_SIZE,VELOCITY_SIZE, 8, num_vert, num_obst,ACCELERATION_SIZE) point_update (
+  collisions #(dt, POSITION_SIZE,VELOCITY_SIZE, 8, num_vert, num_obst,ACCELERATION_SIZE) point_update (
     .clk_in(clk_in),
     .rst_in(rst_in),
     .begin_in(begin_update),
@@ -54,8 +54,8 @@ module update_point_tb();
     .pos_y_in(pos_y),
     .vel_x_in(vel_x),
     .vel_y_in(vel_y),
-    .acceleration_x_in(acceleration_x),
-    .acceleration_y_in(acceleration_y),
+    .acceleration_x(acceleration_x),
+    .acceleration_y(acceleration_y),
     .new_pos_x(new_pos_x),
     .new_pos_y(new_pos_y),
     .new_vel_x(new_vel_x),
@@ -77,6 +77,8 @@ module update_point_tb();
       pos_y <= new_pos_y;
       vel_x <= new_vel_x;
       vel_y <= new_vel_y;
+      new_vel_x <= new_vel_x + acceleration_x * DT;
+      new_vel_y <= new_vel_y + acceleration_y * DT;
       begin_update <= 1;
       #10
       begin_update <= 0;

@@ -165,6 +165,117 @@ module top_level(
     .color_out(color_out)
   );
 
+  //Physics
+  // Constants for testing
+  localparam NUM_SPRINGS = 10;
+  localparam NUM_NODES = 10;
+  localparam NUM_VERTICES = MAX_NUM_VERTICES;
+  localparam NUM_OBSTACLES = MAX_POLYGONS_ON_SCREEN - 1; //one for the wheel, but will be three
+  localparam POSITION_SIZE = WORLD_BITS;
+  localparam VELOCITY_SIZE = 8;
+  localparam FORCE_SIZE = 8;
+  localparam TORQUE = 4;
+  localparam GRAVITY = -1;
+  localparam DT = 1;
+
+  // Signals for testing
+  logic begin_update, result_out;
+  logic [2:0] drive = 0;
+  logic [$clog2(NUM_NODES)-1:0] springs [1:0][NUM_SPRINGS];
+  logic signed [POSITION_SIZE-1:0] ideal [1:0][NUM_NODES];
+  logic signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES];
+  logic [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES];
+  logic [POSITION_SIZE-1:0] axle [1:0];
+  logic [$clog2(NUM_OBSTACLES)-1:0] num_obstacles;
+  logic signed [POSITION_SIZE-1:0] nodes [1:0][NUM_NODES];
+  logic signed [VELOCITY_SIZE-1:0] velocities [1:0][NUM_NODES];
+  logic signed [FORCE_SIZE-1:0] axle_force [1:0];
+  logic signed [VELOCITY_SIZE-1:0] axle_velocity [1:0];
+  assign begin_update = new_frame;
+
+  assign axle[0] = 5;
+  assign axle[1] = 2;
+  assign axle_velocity[0] = 0;
+  assign axle_velocity[1] = 0;
+
+
+  assign all_num_vertices[0] = 8;
+  assign num_obstacles = 1;
+
+  assign nodes[0][0] = -3;
+  assign nodes[1][0] = -2;
+  assign nodes[0][1] = -2;
+  assign nodes[1][1] = 2;
+  assign nodes[0][2] = 2;
+  assign nodes[1][2] = 2;
+  assign nodes[0][3] = 3;
+  assign nodes[1][3] = -2;
+
+  assign velocities[0][0] = 0;
+  assign velocities[1][0] = 0;
+  assign velocities[0][1] = 0;
+  assign velocities[1][1] = 0;
+  assign velocities[0][2] = 0;
+  assign velocities[1][2] = 0;
+  assign velocities[0][3] = 0;
+  assign velocities[1][3] = 0;
+
+  assign ideal[0][0] = -3;
+  assign ideal[1][0] = -2;
+  assign ideal[0][1] = -2;
+  assign ideal[1][1] = 2;
+  assign ideal[0][2] = 2;
+  assign ideal[1][2] = 2;
+  assign ideal[0][3] = 3;
+  assign ideal[1][3] = -2;
+
+  assign springs[0][0] = 0;
+  assign springs[1][0] = 1;
+  assign springs[0][1] = 1;
+  assign springs[1][1] = 2;
+  assign springs[0][2] = 2;
+  assign springs[1][2] = 3;
+  assign springs[0][3] = 3;
+  assign springs[1][3] = 0;
+  assign springs[0][4] = 0;
+  assign springs[1][4] = 2;
+  assign springs[0][5] = 1;
+  assign springs[1][5] = 3;
+
+
+
+  update_wheel #(
+    .NUM_SPRINGS(NUM_SPRINGS),
+    .NUM_NODES(NUM_NODES),
+    .NUM_VERTICES(NUM_VERTICES),
+    .NUM_OBSTACLES(NUM_OBSTACLES),
+    .POSITION_SIZE(POSITION_SIZE),
+    .VELOCITY_SIZE(VELOCITY_SIZE),
+    .FORCE_SIZE(FORCE_SIZE),
+    .TORQUE(TORQUE),
+    .GRAVITY(GRAVITY),
+    .DT(DT)
+  ) wheel_updater (
+    .clk_in(clk_in),
+    .rst_in(rst_in),
+    .begin_in(begin_update),
+    .drive(drive),
+    .ideal(ideal),
+    .obstacles(obstacles),
+    .all_num_vertices(all_num_vertices),
+    .num_obstacles(num_obstacles),
+    .nodes_in(nodes),
+    .velocities_in(velocities),
+    .springs(springs),
+    .axle(axle),
+    .axle_velocity(axle_velocity),
+    .nodes_out(new_nodes),
+    .velocities_out(new_velocities),
+    .axle_force(axle_force),
+    .result_out(result_out)
+  );
+
+
 	always_comb begin
 		red = color_out[23:16];
 		green = color_out[15:8];

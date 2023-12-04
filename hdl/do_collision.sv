@@ -3,7 +3,7 @@ module do_collision #(DT = 1, POSITION_SIZE = 8, VELOCITY_SIZE=8, ACCELERATION_S
   input  wire rst_in,
   input  wire begin_in,
   input  wire [POSITION_SIZE-1:0] obstacle_in [1:0][NUM_VERTICES-1:0],
-  input  wire [POSITION_SIZE-1:0] num_vertices,
+  input  wire [$clog2(NUM_VERTICES):0] num_vertices,
   input  wire [POSITION_SIZE-1:0] pos_x_in,
   input  wire [POSITION_SIZE-1:0] pos_y_in,
   input  wire [VELOCITY_SIZE-1:0] vel_x_in,
@@ -22,6 +22,7 @@ module do_collision #(DT = 1, POSITION_SIZE = 8, VELOCITY_SIZE=8, ACCELERATION_S
   output logic signed [ACCELERATION_SIZE-1:0] acceleration_y,
   output logic was_collision
 );
+//checks for collisions against every vertex of one obstacle
 
 typedef enum {IDLE = 0, COLLISION = 1, CALCULATE = 2, NEXT_VERTEX = 3, RESULT=4} do_collision_state;
 do_collision_state state = IDLE;
@@ -253,7 +254,7 @@ endmodule
   //2) Have registers hold collision values and a new input that says whether to use old values
   //  Con: more registers, need to change logic in module, redundant or useless signalls, parallelizing becomes harder
   //  Pro: no false collisions, less signal additions
-
+/*
 module rounded_division #(DIVIDEND_SIZE,DIVISOR_SIZE,QUOTIENT_SIZE)(
   input  wire clk_in,
   input  wire rst_in,
@@ -265,3 +266,4 @@ module rounded_division #(DIVIDEND_SIZE,DIVISOR_SIZE,QUOTIENT_SIZE)(
 assign quotient = ((2 * (dividend % divisor)) > dividend)?1:0;
 
 endmodule
+*/

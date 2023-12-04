@@ -3,7 +3,7 @@ module collisions #(parameter DT = 1, parameter POSITION_SIZE=8, parameter VELOC
   input  wire rst_in,
   input  wire begin_in,
   input  wire [POSITION_SIZE-1:0] obstacles_in [1:0][NUM_VERTICES][NUM_OBSTACLES],
-  input  wire [$clog2(NUM_VERTICES)-1:0] all_num_vertices_in [NUM_OBSTACLES], //array of num_vertices
+  input  wire [$clog2(NUM_VERTICES):0] all_num_vertices_in [NUM_OBSTACLES], //array of num_vertices
   input  wire [$clog2(NUM_OBSTACLES)-1:0] num_obstacles_in,
   input  wire signed [POSITION_SIZE-1:0] pos_x_in,
   input  wire signed [POSITION_SIZE-1:0] pos_y_in,
@@ -13,8 +13,8 @@ module collisions #(parameter DT = 1, parameter POSITION_SIZE=8, parameter VELOC
   output logic signed [POSITION_SIZE-1:0] new_pos_y,
   output logic signed [VELOCITY_SIZE-1:0] new_vel_x,
   output logic signed [VELOCITY_SIZE-1:0] new_vel_y,
-  output logic signed [ACCELERATION_SIZE-1:0] acceleration_x,
-  output logic signed [ACCELERATION_SIZE-1:0] acceleration_y,
+  output logic signed [ACCELERATION_SIZE-1:0] acceleration_x_out,
+  output logic signed [ACCELERATION_SIZE-1:0] acceleration_y_out,
   output logic result_out
 );
 
@@ -24,15 +24,15 @@ module collisions #(parameter DT = 1, parameter POSITION_SIZE=8, parameter VELOC
 
   //logic signed [FORCE_SIZE - 1:0] force_x, force_y;
   logic signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES];
-  logic [POSITION_SIZE-1:0] all_num_vertices [NUM_OBSTACLES]; //array of num_vertices
-  logic [POSITION_SIZE-1:0] num_obstacles;
+  logic [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES]; //array of num_vertices
+  logic [$clog2(NUM_OBSTACLES)-1:0] num_obstacles;
 
   logic  signed [POSITION_SIZE-1:0] pos_x, pos_y;
   logic  signed [VELOCITY_SIZE-1:0] vel_x, vel_y;
 
   logic is_collision;
   logic signed [POSITION_SIZE-1:0] dx, dy;
-  logic [POSITION_SIZE-1:0] num_vertices;
+  logic [$clog2(NUM_VERTICES):0] num_vertices;
   logic signed [POSITION_SIZE-1:0] x_new,y_new, x_int, y_int;
   logic signed [POSITION_SIZE-1:0] obstacle [1:0][NUM_VERTICES];
   logic was_collision, begin_do;
@@ -61,7 +61,6 @@ do_collision #(DT, POSITION_SIZE,VELOCITY_SIZE, ACCELERATION_SIZE, NUM_VERTICES)
     .vel_y_in(vel_y),
 	.dx_in(dx),
 	.dy_in(dy),
-    //.ready(ready),
     .result_out(collision_result),
     .x_new(x_new),
     .y_new(y_new),
