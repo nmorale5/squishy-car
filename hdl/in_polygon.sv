@@ -27,14 +27,14 @@ module in_polygon # (
 
   generate
     for (genvar v = 0; v < MAX_NUM_VERTICES; v = v + 1) begin
-      multiply_pipelined multiply1 (
+      multiply_pipelined_dsp multiply1 (
         .CLK(clk_in),
         .A(Lx[v] - Hx[v]),
         .B(y_in - Hy[v]),
         .P(mul1[v])
       );
 
-      multiply_pipelined multiply2 (
+      multiply_pipelined_dsp multiply2 (
         .CLK(clk_in),
         .A(Ly[v] - Hy[v]),
         .B(x_in - Hx[v]),
@@ -58,7 +58,7 @@ module in_polygon # (
           Ly[v] <= poly_ys_in[v];
         end
         in_bounds[v] <= (Hy[v] > y_in) && (y_in >= Ly[v]);
-        intersections[v] <= in_bounds[v] && (mul1[v] - mul2[v] >= 0);
+        intersections[v] <= in_bounds[v] && (mul1[v] - mul2[v] <= 0);
       end
     end
   end
