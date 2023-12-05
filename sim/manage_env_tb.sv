@@ -10,14 +10,11 @@ module manage_env_tb;
 
   manage_environment # (
     .WORLD_BITS(32),
-    .MAX_NUM_VERTICES(8),
-    .MAX_POLYGONS_ON_SCREEN(8)
+    .MAX_NUM_VERTICES(8)
   ) uut (
     .clk_in(clk_in),
     .rst_in(rst_in),
-    .start_in(start_in),
-    .positions_out(),
-    .done_out()
+    .start_in(start_in)
   );
 
     always begin
@@ -38,6 +35,14 @@ module manage_env_tb;
         #10; //hold high for a few clock cycles
         rst_in = 0;
         #10;
+        start_in = 1;
+        #10;
+        start_in = 0;
+        #1000;
+        start_in = 1;
+        #10;
+        start_in = 0;
+        #1000;
         start_in = 1;
         #10;
         start_in = 0;

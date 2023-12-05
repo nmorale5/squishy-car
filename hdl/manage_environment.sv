@@ -7,17 +7,18 @@
 `define FPATH(X) `"data/X`"
 `endif  /* ! SYNTHESIS */
 
-// responsible for moving all obstacles and returning an array of all the ones onscreen
+// responsible for reading all obstacles and updating the moving ones
 module manage_environment # (
   parameter WORLD_BITS = 32,
   parameter MAX_NUM_VERTICES = 8,
-  parameter MAX_POLYGONS_ON_SCREEN = 16,
   parameter DT = 1
 ) (
   input wire clk_in,
   input wire rst_in,
   input wire start_in,
-  output logic signed [WORLD_BITS-1:0] positions_out [MAX_POLYGONS_ON_SCREEN] [MAX_NUM_VERTICES],
+  output logic valid_out,
+  output logic [WORLD_BITS-1:0] x_out,
+  output logic [WORLD_BITS-1:0] y_out,
   output logic done_out
 );
 
@@ -33,7 +34,7 @@ module manage_environment # (
   logic [$clog2(BRAM_DEPTH)-1:0] sentinel_address;
 
   localparam BRAM_WIDTH = 2 * WORLD_BITS;
-  localparam BRAM_DEPTH = 47; // Needs to match the number of lines in /data/level.mem
+  localparam BRAM_DEPTH = 67; // Needs to match the number of lines in /data/level.mem
   
   logic [$clog2(BRAM_DEPTH)-1:0] read_addr, write_addr;
   logic signed [WORLD_BITS-1:0] read_data_a, read_data_b, write_data_a, write_data_b;
@@ -66,7 +67,6 @@ module manage_environment # (
   );
 
   localparam MAX_LATENCY = 36; // same as rotate latency (WORLD_BITS + 4)
-  localparam MUL_LATENCY = 6;
 
   logic signed [WORLD_BITS-1:0] buffer_a [MAX_LATENCY];
   logic signed [WORLD_BITS-1:0] buffer_b [MAX_LATENCY];
@@ -90,14 +90,14 @@ module manage_environment # (
   logic signed [WORLD_BITS-1:0] rotate_x;
   logic signed [WORLD_BITS-1:0] rotate_y;
 
-  // rotate m_rotate (
-  //   .s_axis_cartesian_tdata({ rotate_point_y_arg, rotate_point_x_arg }),
-  //   .s_axis_cartesian_tvalid(rotate_valid),
-  //   .s_axis_phase_tdata(rotate_angle_arg),
-  //   .s_axis_phase_tvalid(rotate_valid),
-  //   .m_axis_dout_tdata({ rotate_y, rotate_x }),
-  //   .m_axis_dout_tvalid(rotate_out_valid)
-  // );
+  rotate m_rotate (
+    .s_axis_cartesian_tdata({ rotate_point_y_arg, rotate_point_x_arg }),
+    .s_axis_cartesian_tvalid(rotate_valid),
+    .s_axis_phase_tdata(rotate_angle_arg),
+    .s_axis_phase_tvalid(rotate_valid),
+    .m_axis_dout_tdata({ rotate_y, rotate_x }),
+    .m_axis_dout_tvalid(rotate_out_valid)
+  );
 
   always_ff @(posedge clk_in) begin
     for (int i = 0; i < MAX_LATENCY - 1; i = i + 1) begin
@@ -113,6 +113,7 @@ module manage_environment # (
       read_addr <= 0;
       write_valid <= 0;
       done_out <= 0;
+      valid_out <= 0;
       read_region <= WAITING;
       write_region <= WAITING;
       read_line_counter <= 0;
@@ -135,12 +136,14 @@ module manage_environment # (
           if (read_data_a == MOVING_SENTINEL) begin
             read_region <= STATIC;
             sentinel_address <= read_addr - 2;
+            valid_out <= 0;
           end else begin
             case (read_line_counter)
               0: begin
                 buffer_a[0] <= (read_data_a + DT) > read_data_b ? (read_data_a + DT) - read_data_b : (read_data_a + DT);
                 buffer_b[0] <= read_data_b;
                 rotate_valid <= 0;
+                valid_out <= 0;
               end
               1: begin
                 buffer_a[0] <= buffer_a[0] < (buffer_b[0] >> 1) ? read_data_a : -read_data_a;
@@ -162,17 +165,34 @@ module manage_environment # (
                 rotate_point_x_arg <= read_data_a - buffer_a[read_line_counter - 3];
                 rotate_point_y_arg <= read_data_b - buffer_b[read_line_counter - 3];
                 rotate_valid <= 1;
+                valid_out <= 1;
+                x_out <= read_data_a;
+                y_out <= read_data_b;
               end
             endcase
+            read_line_counter <= read_line_counter < read_num_points + 3 ? read_line_counter + 1 : 0;
           end
         end else if (read_region == STATIC) begin
-          
+          read_line_counter <= read_line_counter < read_num_points ? read_line_counter + 1 : 0;
+          if (read_line_counter == 0) begin
+            read_num_points <= read_data_b;
+            valid_out <= 0;
+          end else begin
+            x_out <= read_data_a;
+            y_out <= read_data_b;
+            valid_out <= 1;
+          end
+          if (read_addr == BRAM_DEPTH + 1) begin
+            valid_out <= 0;
+            state <= RESULT;
+          end
         end
         if (write_addr + 2 == 1 << $clog2(BRAM_DEPTH)) begin
           write_region <= MOVING;
         end
-        if (write_addr == sentinel_address) begin
+        if (write_addr + 1 == sentinel_address) begin
           write_region <= STATIC;
+          write_valid <= 0;
         end else if (write_region == MOVING) begin
           case (write_line_counter)
             0: begin
@@ -201,7 +221,6 @@ module manage_environment # (
             end
           endcase
         end
-        read_line_counter <= read_line_counter + 1 < read_num_points + 4 ? read_line_counter + 1 : 0;
         if (write_region != WAITING) begin
           write_line_counter <= write_line_counter + 1 < write_num_points + 4 ? write_line_counter + 1 : 0;
         end
@@ -214,16 +233,7 @@ module manage_environment # (
         done_out <= 0;
       end
     end
-    latest_in_buffer_a <= buffer_a[MAX_LATENCY-1];
-    latest_in_buffer_b <= buffer_b[MAX_LATENCY-1];
-    first_in_buffer_a <= buffer_a[0];
-    first_in_buffer_b <= buffer_b[0];
   end
-
-  logic signed [WORLD_BITS-1:0] latest_in_buffer_a;
-  logic signed [WORLD_BITS-1:0] latest_in_buffer_b;
-  logic signed [WORLD_BITS-1:0] first_in_buffer_a;
-  logic signed [WORLD_BITS-1:0] first_in_buffer_b;
 
 endmodule
 
