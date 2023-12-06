@@ -4,7 +4,7 @@
     "xci_name": "multiply_pipelined_dsp",
     "component_reference": "xilinx.com:ip:mult_gen:12.0",
     "ip_revision": "18",
-    "gen_directory": "./ip/multiply_pipelined_dsp",
+    "gen_directory": "ip/multiply_pipelined_dsp",
     "parameters": {
       "component_parameters": {
         "InternalUser": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
@@ -68,7 +68,7 @@
         "IPCONTEXT": [ { "value": "IP_Flow" } ],
         "IPREVISION": [ { "value": "18" } ],
         "MANAGED": [ { "value": "TRUE" } ],
-        "OUTPUTDIR": [ { "value": "./ip/multiply_pipelined_dsp" } ],
+        "OUTPUTDIR": [ { "value": "ip/multiply_pipelined_dsp" } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
         "SHAREDDIR": [ { "value": "." } ],
         "SWVERSION": [ { "value": "2023.1" } ],

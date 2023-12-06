@@ -79,7 +79,51 @@ module top_level(
   //
   ////////////////////////////////////////////
 
-  
+  logic signed [WORLD_BITS-1:0] env_stream_x, env_stream_y;
+  logic env_stream_valid, env_stream_done;
+
+  manage_environment # (
+    .WORLD_BITS(WORLD_BITS),
+    .MAX_NUM_VERTICES(MAX_NUM_VERTICES)
+  ) env (
+    .clk_in(clk_pixel),
+    .rst_in(sys_rst),
+    .start_in(new_frame),
+    .valid_out(env_stream_valid),
+    .x_out(env_stream_x),
+    .y_out(env_stream_y),
+    .done_out(env_stream_done)
+  );
+
+  logic signed [WORLD_BITS-1:0] on_screen_xs [MAX_POLYGONS_ON_SCREEN] [MAX_NUM_VERTICES];
+  logic signed [WORLD_BITS-1:0] on_screen_ys [MAX_POLYGONS_ON_SCREEN] [MAX_NUM_VERTICES];
+  logic [$clog2(MAX_NUM_VERTICES+1)-1:0] num_sides_each_poly [MAX_POLYGONS_ON_SCREEN];
+  logic [$clog2(MAX_POLYGONS_ON_SCREEN+1)-1:0] num_polys_on_screen;
+  logic [3:0] obstacle_colors [MAX_POLYGONS_ON_SCREEN];
+  logic got_all_obstacles;
+
+  get_obstacles_on_screen # (
+    .WORLD_BITS(WORLD_BITS),
+    .MAX_NUM_VERTICES(MAX_NUM_VERTICES),
+    .MAX_OBSTACLES_ON_SCREEN(MAX_POLYGONS_ON_SCREEN)
+  ) on_screen (
+    .clk_in(clk_pixel),
+    .valid_in(env_stream_valid),
+    .x_in(env_stream_x),
+    .y_in(env_stream_y),
+    .done_in(env_stream_done),
+    .obstacle_xs_out(on_screen_xs),
+    .obstacle_ys_out(on_screen_ys),
+    .obstacles_num_sides_out(num_sides_each_poly),
+    .num_obstacles_out(num_polys_on_screen),
+    .done_out(got_all_obstacles)
+  );
+
+  always_comb begin
+    for (int i = 0; i < MAX_POLYGONS_ON_SCREEN; i = i + 1) begin
+      obstacle_colors[i] = `LGREEN;
+    end
+  end
 
   ////////////////////////////////////////////
   //
@@ -98,55 +142,9 @@ module top_level(
   localparam EDGE_THICKNESS = 3;
 
   logic signed [WORLD_BITS-1:0] camera_x, camera_y;
-  logic signed [WORLD_BITS-1:0] polygons_xs [MAX_POLYGONS_ON_SCREEN] [MAX_NUM_VERTICES];
-  logic signed [WORLD_BITS-1:0] polygons_ys [MAX_POLYGONS_ON_SCREEN] [MAX_NUM_VERTICES];
-  logic [$clog2(MAX_NUM_VERTICES+1)-1:0] polygons_num_sides [MAX_POLYGONS_ON_SCREEN];
-  logic [$clog2(MAX_POLYGONS_ON_SCREEN+1)-1:0] num_polygons;
-  logic [3:0] polygons_colors [MAX_POLYGONS_ON_SCREEN];
 
   assign camera_x = 640;
   assign camera_y = 360;
-
-  assign polygons_xs[0][0] = 100;
-  assign polygons_xs[0][1] = 200;
-  assign polygons_xs[0][2] = 200;
-  assign polygons_xs[0][3] = 100;
-
-  assign polygons_ys[0][0] = 100;
-  assign polygons_ys[0][1] = 100;
-  assign polygons_ys[0][2] = 200;
-  assign polygons_ys[0][3] = 200;
-
-  assign polygons_num_sides[0] = 4;
-  assign polygons_colors[0] = `RED;
-
-  assign polygons_xs[1][0] = 300;
-  assign polygons_xs[1][1] = 400;
-  assign polygons_xs[1][2] = 500;
-
-  assign polygons_ys[1][0] = 300;
-  assign polygons_ys[1][1] = 100;
-  assign polygons_ys[1][2] = 300;
-
-  assign polygons_num_sides[1] = 3;
-  assign polygons_colors[1] = `GREEN;
-
-  assign polygons_xs[2][0] = 700;
-  assign polygons_xs[2][1] = 900;
-  assign polygons_xs[2][2] = 900;
-  assign polygons_xs[2][3] = 800;
-  assign polygons_xs[2][4] = 700;
-
-  assign polygons_ys[2][0] = 250;
-  assign polygons_ys[2][1] = 250;
-  assign polygons_ys[2][2] = 150;
-  assign polygons_ys[2][3] = 50;
-  assign polygons_ys[2][4] = 150;
-
-  assign polygons_num_sides[2] = 5;
-  assign polygons_colors[2] = `YELLOW;
-  
-  assign num_polygons = 3;
 
   render # (
     .PIXEL_WIDTH(PIXEL_WIDTH),
@@ -165,11 +163,11 @@ module top_level(
     .vcount_in(vcount),
     .camera_x_in(camera_x),
     .camera_y_in(camera_y),
-    .polygons_xs_in(polygons_xs),
-    .polygons_ys_in(polygons_ys),
-    .polygons_num_sides_in(polygons_num_sides),
-    .num_polygons_in(num_polygons),
-    .colors_in(polygons_colors),
+    .polygons_xs_in(on_screen_xs),
+    .polygons_ys_in(on_screen_ys),
+    .polygons_num_sides_in(num_sides_each_poly),
+    .num_polygons_in(num_polys_on_screen),
+    .colors_in(obstacle_colors),
     .color_out(color_out)
   );
 
