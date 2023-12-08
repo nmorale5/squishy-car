@@ -32,6 +32,7 @@ read_ip ./ip/signed_int_multiplier/signed_int_multiplier.xci
 read_ip ./ip/multiply_pipelined/multiply_pipelined.xci
 read_ip ./ip/multiply_pipelined_dsp/multiply_pipelined_dsp.xci
 read_ip ./ip/rotate/rotate.xci
+read_ip ./ip/multiply_pipelined_alt/multiply_pipelined_alt.xci
 generate_target all [get_ips]
 synth_ip [get_ips]
 
