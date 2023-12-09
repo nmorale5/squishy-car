@@ -32,7 +32,7 @@ iverilog -g2012 -o foo.out sim/manage_env_tb.sv hdl/manage_environment.sv hdl/xi
 
 ![Multiplier](signed_int_multiplier.png)
 
-Latency of 1 cycle.
+multiply_18_bit: uses 1 DSP and has latency of 3 clock cycles
 
 ### Divider
 

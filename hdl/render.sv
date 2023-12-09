@@ -58,13 +58,13 @@ module render # (
   logic [MAX_POLYGONS_ON_SCREEN-1:0] edge_valids, fill_valids;
 
   generate
-    genvar p;
-    for (p = 3; p < MAX_POLYGONS_ON_SCREEN; p = p + 1) begin
+    genvar ob;
+    for (ob = 0; ob < MAX_OBSTACLES_ON_SCREEN; ob = ob + 1) begin
       draw_polygon # (
-        .PIXEL_WIDTH(PIXEL_WIDTH), // number of pixels in resulting image width
-        .PIXEL_HEIGHT(PIXEL_HEIGHT), // number of pixels in resulting image height
+        .PIXEL_WIDTH(PIXEL_WIDTH),
+        .PIXEL_HEIGHT(PIXEL_HEIGHT),
         .WORLD_BITS(WORLD_BITS),
-        .SCALE_LEVEL(SCALE_LEVEL),    // how much to zoom in (bigger scale means bigger zoom)
+        .SCALE_LEVEL(SCALE_LEVEL),
         .EDGE_THICKNESS(EDGE_THICKNESS),
         .MAX_NUM_VERTICES(OBSTACLE_MAX_VERTICES)
       ) obstacle (
@@ -74,20 +74,20 @@ module render # (
         .vcount_in(vcount_in),
         .camera_x_in(camera_x_in),
         .camera_y_in(camera_y_in),
-        .xs_in(obstacles_xs_in[p]), // points of polygon in order
-        .ys_in(obstacles_ys_in[p]),
-        .num_points_in(obstacles_num_sides_in[p]), // from 3 to 31
-        .edge_out(edge_valids[p]),
-        .fill_out(fill_valids[p])
+        .xs_in(obstacles_xs_in[ob]),
+        .ys_in(obstacles_ys_in[ob]),
+        .num_points_in(obstacles_num_sides_in[ob]),
+        .edge_out(edge_valids[ob+3]),
+        .fill_out(fill_valids[ob+3])
       );
     end
   endgenerate
 
   draw_polygon # (
-    .PIXEL_WIDTH(PIXEL_WIDTH), // number of pixels in resulting image width
-    .PIXEL_HEIGHT(PIXEL_HEIGHT), // number of pixels in resulting image height
+    .PIXEL_WIDTH(PIXEL_WIDTH),
+    .PIXEL_HEIGHT(PIXEL_HEIGHT),
     .WORLD_BITS(WORLD_BITS),
-    .SCALE_LEVEL(SCALE_LEVEL),    // how much to zoom in (bigger scale means bigger zoom)
+    .SCALE_LEVEL(SCALE_LEVEL),
     .EDGE_THICKNESS(EDGE_THICKNESS),
     .MAX_NUM_VERTICES(CAR_WHEEL_VERTICES)
   ) wheel_1 (
@@ -97,18 +97,18 @@ module render # (
     .vcount_in(vcount_in),
     .camera_x_in(camera_x_in),
     .camera_y_in(camera_y_in),
-    .xs_in(car_wheel_1_xs_in), // points of polygon in order
+    .xs_in(car_wheel_1_xs_in),
     .ys_in(car_wheel_1_ys_in),
-    .num_points_in(CAR_WHEEL_VERTICES), // from 3 to 31
+    .num_points_in(CAR_WHEEL_VERTICES),
     .edge_out(edge_valids[0]),
     .fill_out(fill_valids[0])
   );
 
   draw_polygon # (
-    .PIXEL_WIDTH(PIXEL_WIDTH), // number of pixels in resulting image width
-    .PIXEL_HEIGHT(PIXEL_HEIGHT), // number of pixels in resulting image height
+    .PIXEL_WIDTH(PIXEL_WIDTH),
+    .PIXEL_HEIGHT(PIXEL_HEIGHT),
     .WORLD_BITS(WORLD_BITS),
-    .SCALE_LEVEL(SCALE_LEVEL),    // how much to zoom in (bigger scale means bigger zoom)
+    .SCALE_LEVEL(SCALE_LEVEL),
     .EDGE_THICKNESS(EDGE_THICKNESS),
     .MAX_NUM_VERTICES(CAR_WHEEL_VERTICES)
   ) wheel_2 (
@@ -118,18 +118,18 @@ module render # (
     .vcount_in(vcount_in),
     .camera_x_in(camera_x_in),
     .camera_y_in(camera_y_in),
-    .xs_in(car_wheel_2_xs_in), // points of polygon in order
+    .xs_in(car_wheel_2_xs_in),
     .ys_in(car_wheel_2_ys_in),
-    .num_points_in(CAR_WHEEL_VERTICES), // from 3 to 31
+    .num_points_in(CAR_WHEEL_VERTICES),
     .edge_out(edge_valids[1]),
     .fill_out(fill_valids[1])
   );
 
   draw_polygon # (
-    .PIXEL_WIDTH(PIXEL_WIDTH), // number of pixels in resulting image width
-    .PIXEL_HEIGHT(PIXEL_HEIGHT), // number of pixels in resulting image height
+    .PIXEL_WIDTH(PIXEL_WIDTH),
+    .PIXEL_HEIGHT(PIXEL_HEIGHT),
     .WORLD_BITS(WORLD_BITS),
-    .SCALE_LEVEL(SCALE_LEVEL),    // how much to zoom in (bigger scale means bigger zoom)
+    .SCALE_LEVEL(SCALE_LEVEL),
     .EDGE_THICKNESS(EDGE_THICKNESS),
     .MAX_NUM_VERTICES(CAR_BODY_VERTICES)
   ) body (
@@ -139,9 +139,9 @@ module render # (
     .vcount_in(vcount_in),
     .camera_x_in(camera_x_in),
     .camera_y_in(camera_y_in),
-    .xs_in(car_body_xs_in), // points of polygon in order
+    .xs_in(car_body_xs_in),
     .ys_in(car_body_ys_in),
-    .num_points_in(CAR_BODY_VERTICES), // from 3 to 31
+    .num_points_in(CAR_BODY_VERTICES),
     .edge_out(edge_valids[2]),
     .fill_out(fill_valids[2])
   );
@@ -155,7 +155,7 @@ module render # (
         color_idx = edge_valids[i] ? EDGE_COLOR : (fill_valids[i] ? CAR_WHEEL_COLOR : color_idx);
       end else if (i == 2) begin
         color_idx = edge_valids[i] ? EDGE_COLOR : (fill_valids[i] ? CAR_BODY_COLOR : color_idx);
-      end else if (i < num_obstacles_in) begin
+      end else if (i < num_obstacles_in + 3) begin
         color_idx = edge_valids[i] ? EDGE_COLOR : (fill_valids[i] ? colors_in[i] : color_idx);
       end else begin
         color_idx = color_idx;

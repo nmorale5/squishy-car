@@ -1,13 +1,15 @@
-WORLD_BITS = 32
+WORLD_BITS = 18
 
-num_hex_digits = ((WORLD_BITS - 1) // 4 + 1)
+num_hex_digits = ((WORLD_BITS * 2 - 1) // 4 + 1)
 
 def decimal_to_hex(decimal_str):
     decimal_list = decimal_str.split()
-    each_val = [hex(int(num))[2:].upper() for num in decimal_list]
-    each_val_with_padding = ['0' * (num_hex_digits - len(each_val[i])) + each_val[i] for i in range(len(each_val))]
-    each_line = [each_val_with_padding[i] + each_val_with_padding[i + 1] for i in range(0, len(each_val_with_padding), 2)]
-    return '\n'.join(each_line)
+    bin_vals = [bin(int(num))[2:] for num in decimal_list]
+    bin_vals_with_padding = ['0' * (WORLD_BITS - len(bin_vals[i])) + bin_vals[i] for i in range(len(bin_vals))]
+    concatenated_bin_vals = [bin_vals_with_padding[i] + bin_vals_with_padding[i + 1] for i in range(0, len(bin_vals_with_padding), 2)]
+    hex_vals = [hex(int(bin_val, 2))[2:] for bin_val in concatenated_bin_vals]
+    padded_hex_vals = ['0' * (num_hex_digits - len(hex_val)) + hex_val for hex_val in hex_vals]
+    return '\n'.join(padded_hex_vals)
 
 # File names
 input_file = 'level.txt'
