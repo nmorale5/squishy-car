@@ -23,23 +23,28 @@ module get_obstacles_on_screen # (
 );
 
   logic [$clog2(MAX_OBSTACLES_ON_SCREEN+1)-1:0] curr_idx;
-  logic prev_valid_in, is_on_screen;
+  logic prev_valid_in;
+  logic signed [WORLD_BITS-1:0] cur_min_x, cur_max_x, cur_min_y, cur_max_y;
 
   always_ff @(posedge clk_in) begin
     if (done_in) begin
       num_obstacles_out <= curr_idx;
       curr_idx <= 0;
-      is_on_screen <= 0;
       done_out <= 1;
+      cur_min_x <= (1 << (WORLD_BITS - 1)) - 1; // most positive number
+      cur_max_x <=  1 << (WORLD_BITS - 1);      // most negative number
+      cur_min_y <= (1 << (WORLD_BITS - 1)) - 1; // most positive number
+      cur_max_y <=  1 << (WORLD_BITS - 1);      // most negative number
     end
     if (done_out) begin
       done_out <= 0;
     end
     if (valid_in) begin
       if (curr_idx < MAX_OBSTACLES_ON_SCREEN) begin
-        if (screen_min_x < x_in && x_in < screen_max_x && screen_min_y < y_in && y_in < screen_max_y) begin
-          is_on_screen <= 1;
-        end
+        cur_min_x <= x_in < cur_min_x ? x_in : cur_min_x;
+        cur_max_x <= x_in > cur_max_x ? x_in : cur_max_x;
+        cur_min_y <= y_in < cur_min_y ? y_in : cur_min_y;
+        cur_max_y <= y_in > cur_max_y ? y_in : cur_max_y;
         if (prev_valid_in) begin
           obstacles_num_sides_out[curr_idx] <= obstacles_num_sides_out[curr_idx] + 1;
           obstacle_xs_out[curr_idx][obstacles_num_sides_out[curr_idx]] <= x_in;
@@ -52,8 +57,21 @@ module get_obstacles_on_screen # (
       end
       prev_valid_in <= 1;
     end else if (prev_valid_in) begin
-      curr_idx <= curr_idx + is_on_screen;
-      is_on_screen <= 0;
+       if (~( // this polygon is on screen iff the following are false:
+        cur_max_x < screen_min_x || // the polygon is too far left
+        cur_min_x > screen_max_x || // the polygon is too far right
+        cur_max_y < screen_min_y || // the polygon is too far down
+        cur_min_y > screen_max_y    // the polygon is too far up
+        // if more obstacles are onscreen than MAX_OBSTACLES_ON_SCREEN,
+        // don't render the additional ones
+      ) && curr_idx < MAX_OBSTACLES_ON_SCREEN) begin
+        curr_idx <= curr_idx + 1;
+      end
+      cur_min_x <= (1 << (WORLD_BITS - 1)) - 1; // most positive number
+      cur_max_x <=  1 << (WORLD_BITS - 1);      // most negative number
+      cur_min_y <= (1 << (WORLD_BITS - 1)) - 1; // most positive number
+      cur_max_y <=  1 << (WORLD_BITS - 1);      // most negative number
+
       prev_valid_in <= 0;
     end
   end
