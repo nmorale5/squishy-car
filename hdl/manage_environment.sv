@@ -66,7 +66,7 @@ module manage_environment # (
     .doutb()           // Port B RAM output data, width determined from RAM_WIDTH
   );
 
-  localparam MAX_LATENCY = 36; // same as rotate latency (WORLD_BITS + 4)
+  localparam MAX_LATENCY = WORLD_BITS + 4; // same as rotate latency (WORLD_BITS + 4)
 
   logic signed [WORLD_BITS-1:0] buffer_a [MAX_LATENCY];
   logic signed [WORLD_BITS-1:0] buffer_b [MAX_LATENCY];
@@ -90,7 +90,7 @@ module manage_environment # (
   logic signed [WORLD_BITS-1:0] rotate_x;
   logic signed [WORLD_BITS-1:0] rotate_y;
 
-  rotate m_rotate (
+  rotate_18_bit m_rotate (
     .s_axis_cartesian_tdata({ rotate_point_y_arg, rotate_point_x_arg }),
     .s_axis_cartesian_tvalid(rotate_valid),
     .s_axis_phase_tdata(rotate_angle_arg),
@@ -100,9 +100,9 @@ module manage_environment # (
   );
 
   always_ff @(posedge clk_in) begin
-    for (int i = 0; i < MAX_LATENCY - 1; i = i + 1) begin
-      buffer_a[i + 1] <= buffer_a[i];
-      buffer_b[i + 1] <= buffer_b[i];
+    for (int e = 0; e < MAX_LATENCY - 1; e = e + 1) begin
+      buffer_a[e + 1] <= buffer_a[e];
+      buffer_b[e + 1] <= buffer_b[e];
     end
   end
 
@@ -140,7 +140,7 @@ module manage_environment # (
           end else begin
             case (read_line_counter)
               0: begin
-                buffer_a[0] <= (read_data_a + DT) > read_data_b ? (read_data_a + DT) - read_data_b : (read_data_a + DT);
+                buffer_a[0] <= (read_data_a + DT) >= read_data_b ? (read_data_a + DT) - read_data_b : (read_data_a + DT);
                 buffer_b[0] <= read_data_b;
                 rotate_valid <= 0;
                 valid_out <= 0;

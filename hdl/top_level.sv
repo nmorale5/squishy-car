@@ -36,7 +36,7 @@ module top_level(
   assign rgb0 = 0;
   /* have btnd control system reset */
   logic sys_rst;
-  assign sys_rst = btn[0];
+  // assign sys_rst = btn[0];
  
   logic clk_pixel, clk_5x; //clock lines
   logic locked; //locked signal (we'll leave unused but still hook it up)
@@ -82,6 +82,38 @@ module top_level(
   logic signed [WORLD_BITS-1:0] env_stream_x, env_stream_y;
   logic env_stream_valid, env_stream_done;
 
+  logic signed [WORLD_BITS-1:0] screen_min_x, screen_max_x, screen_min_y, screen_max_y;
+
+  pixel_to_world # (
+    .PIXEL_WIDTH(PIXEL_WIDTH),
+    .PIXEL_HEIGHT(PIXEL_HEIGHT),
+    .WORLD_BITS(WORLD_BITS),
+    .SCALE_LEVEL(SCALE_LEVEL)
+  ) get_min_screen_coords (
+    .clk_in(clk_pixel),
+    .camera_x_in(camera_x),
+    .camera_y_in(camera_y),
+    .hcount_in(0), 
+    .vcount_in(PIXEL_HEIGHT), // higher v-counts are lower on screen
+    .world_x_out(screen_min_x),
+    .world_y_out(screen_min_y)
+  );
+
+  pixel_to_world # (
+    .PIXEL_WIDTH(PIXEL_WIDTH),
+    .PIXEL_HEIGHT(PIXEL_HEIGHT),
+    .WORLD_BITS(WORLD_BITS),
+    .SCALE_LEVEL(SCALE_LEVEL)
+  ) get_max_screen_coords (
+    .clk_in(clk_pixel),
+    .camera_x_in(camera_x),
+    .camera_y_in(camera_y),
+    .hcount_in(PIXEL_WIDTH), 
+    .vcount_in(0), // lower v-counts are higher on screen
+    .world_x_out(screen_max_x),
+    .world_y_out(screen_max_y)
+  );  
+
   manage_environment # (
     .WORLD_BITS(WORLD_BITS),
     .MAX_NUM_VERTICES(MAX_NUM_VERTICES)
@@ -111,6 +143,10 @@ module top_level(
     .valid_in(env_stream_valid),
     .x_in(env_stream_x),
     .y_in(env_stream_y),
+    .screen_min_x(screen_min_x),
+    .screen_max_x(screen_max_x),
+    .screen_min_y(screen_min_y),
+    .screen_max_y(screen_max_y),
     .done_in(env_stream_done),
     .obstacle_xs_out(on_screen_xs),
     .obstacle_ys_out(on_screen_ys),
@@ -146,8 +182,21 @@ module top_level(
   localparam EDGE_THICKNESS = 3;
 
   logic signed [WORLD_BITS-1:0] camera_x, camera_y;
-  assign camera_x = 640;
-  assign camera_y = 360;
+  // assign camera_x = 640;
+  // assign camera_y = 360;
+  always_ff @(posedge clk_pixel) begin
+    if (new_frame) begin
+      if (btn[3]) begin
+        camera_x <= camera_x - 5;
+      end else if (btn[2]) begin
+        camera_x <= camera_x + 5;
+      end else if (btn[1]) begin
+        camera_y <= camera_y - 5;
+      end else if (btn[0]) begin
+        camera_y <= camera_y + 5;
+      end
+    end
+  end
 
   logic signed [WORLD_BITS-1:0] car_body_x [CAR_BODY_VERTICES];
   logic signed [WORLD_BITS-1:0] car_body_y [CAR_BODY_VERTICES];

@@ -26,6 +26,10 @@ iverilog -g2012 -o foo.out sim/in_polygon_tb.sv hdl/in_polygon.sv hdl/angle.sv h
 
 iverilog -g2012 -o foo.out sim/manage_env_tb.sv hdl/manage_environment.sv hdl/xilinx_true_dual_port_read_first_2_clock_ram.v
 
+#### Obstacles on Screen
+
+iverilog -g2012 -o foo.out sim/on_screen_tb.sv hdl/get_obstacles_on_screen.sv
+
 ## IP
 
 ### Multiplier

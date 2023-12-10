@@ -9,7 +9,7 @@ module manage_env_tb;
   logic start_in;
 
   manage_environment # (
-    .WORLD_BITS(32),
+    .WORLD_BITS(18),
     .MAX_NUM_VERTICES(8)
   ) uut (
     .clk_in(clk_in),

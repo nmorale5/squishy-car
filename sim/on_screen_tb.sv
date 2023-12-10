@@ -15,12 +15,16 @@ module on_screen_tb;
   get_obstacles_on_screen # (
     .WORLD_BITS(WORLD_BITS),
     .MAX_NUM_VERTICES(8),
-    .MAX_OBSTACLES_ON_SCREEN(8)
+    .MAX_OBSTACLES_ON_SCREEN(2)
   ) uut (
     .clk_in(clk_in),
     .valid_in(valid_in),
     .x_in(x_in),
     .y_in(y_in),
+    .screen_min_x(0),
+    .screen_max_x(100),
+    .screen_min_y(0),
+    .screen_max_y(100),
     .done_in(done_in)
   );
 
@@ -46,37 +50,37 @@ module on_screen_tb;
         done_in = 0;
         #10;
         valid_in = 1;
-        x_in = 8'hAA;
-        y_in = 8'hBB;
+        x_in = 150;
+        y_in = 50;
         #10;
-        x_in = 8'hCC;
-        y_in = 8'hDD;
+        x_in = 50;
+        y_in = -1;
         #10;
-        x_in = 8'hEE;
-        y_in = 8'hFF;
+        x_in = 20;
+        y_in = 20;
         #10;
-        x_in = 8'h88;
-        y_in = 8'h99;
+        x_in = 300;
+        y_in = 300;
         #10;
         valid_in = 0;
         #10;
         #10;
         #10;
         valid_in = 1;
-        x_in = 8'hA0;
-        y_in = 8'hB0;
+        x_in = 200;
+        y_in = 200;
         #10;
-        x_in = 8'hC0;
-        y_in = 8'hD0;
+        x_in = 300;
+        y_in = 300;
         #10;
-        x_in = 8'hE0;
-        y_in = 8'hF0;
+        x_in = 400;
+        y_in = 400;
         #10;
-        x_in = 8'h80;
-        y_in = 8'h90;
+        x_in = 500;
+        y_in = 500;
         #10;
-        x_in = 8'h60;
-        y_in = 8'h70;
+        x_in = 600;
+        y_in = 600;
         #10;
         valid_in = 0;
         #10;
@@ -85,14 +89,42 @@ module on_screen_tb;
         done_in = 0;
         #100;
         valid_in = 1;
-        x_in = 8'hA0;
-        y_in = 8'hB0;
+        x_in = 20;
+        y_in = 200;
         #10;
-        x_in = 8'hC0;
-        y_in = 8'hD0;
+        x_in = 500;
+        y_in = 500;
         #10;
-        x_in = 8'hE0;
-        y_in = 8'hF0;
+        x_in = 30;
+        y_in = 30;
+        #10;
+        valid_in = 0;
+        #10;
+        #10;
+        #10;
+        valid_in = 1;
+        x_in = 40;
+        y_in = 40;
+        #10;
+        x_in = 50;
+        y_in = 50;
+        #10;
+        x_in = 60;
+        y_in = 60;
+        #10;
+        valid_in = 0;
+        #10;
+        #10;
+        #10;
+        valid_in = 1;
+        x_in = 20;
+        y_in = 20;
+        #10;
+        x_in = 500;
+        y_in = 500;
+        #10;
+        x_in = 300;
+        y_in = 30;
         #10;
         valid_in = 0;
         #10;
