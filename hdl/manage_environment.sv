@@ -34,7 +34,7 @@ module manage_environment # (
   logic [$clog2(BRAM_DEPTH)-1:0] sentinel_address;
 
   localparam BRAM_WIDTH = 2 * WORLD_BITS;
-  localparam BRAM_DEPTH = 67; // Needs to match the number of lines in /data/level.mem
+  localparam BRAM_DEPTH = 70; // Needs to match the number of lines in /data/level.mem
   
   logic [$clog2(BRAM_DEPTH)-1:0] read_addr, write_addr;
   logic signed [WORLD_BITS-1:0] read_data_a, read_data_b, write_data_a, write_data_b;
@@ -183,7 +183,6 @@ module manage_environment # (
             valid_out <= 1;
           end
           if (read_addr == BRAM_DEPTH + 1) begin
-            valid_out <= 0;
             state <= RESULT;
           end
         end
@@ -225,6 +224,7 @@ module manage_environment # (
           write_line_counter <= write_line_counter + 1 < write_num_points + 4 ? write_line_counter + 1 : 0;
         end
       end else if (state == RESULT) begin
+        valid_out <= 0;
         done_out <= 1;
         state <= IDLE;
         read_region <= WAITING;
