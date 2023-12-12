@@ -2,6 +2,6 @@
 vivado*
 obj/*
 !obj/final.bit
-*.txt
-*.out
-*.vcd
+/*.txt
+/*.out
+/*.vcd

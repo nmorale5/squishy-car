@@ -36,7 +36,7 @@ module top_level(
   assign rgb0 = 0;
   /* have btnd control system reset */
   logic sys_rst;
-  assign sys_rst = btn[0];
+  // assign sys_rst = btn[0];
  
   logic clk_pixel, clk_5x; //clock lines
   logic locked; //locked signal (we'll leave unused but still hook it up)
@@ -75,6 +75,94 @@ module top_level(
 
   ////////////////////////////////////////////
   //
+  //               Environment
+  //
+  ////////////////////////////////////////////
+
+  logic signed [WORLD_BITS-1:0] env_stream_x, env_stream_y;
+  logic env_stream_valid, env_stream_done;
+
+  logic signed [WORLD_BITS-1:0] screen_min_x, screen_max_x, screen_min_y, screen_max_y;
+
+  pixel_to_world # (
+    .PIXEL_WIDTH(PIXEL_WIDTH),
+    .PIXEL_HEIGHT(PIXEL_HEIGHT),
+    .WORLD_BITS(WORLD_BITS),
+    .SCALE_LEVEL(SCALE_LEVEL)
+  ) get_min_screen_coords (
+    .clk_in(clk_pixel),
+    .camera_x_in(camera_x),
+    .camera_y_in(camera_y),
+    .hcount_in(0), 
+    .vcount_in(PIXEL_HEIGHT), // higher v-counts are lower on screen
+    .world_x_out(screen_min_x),
+    .world_y_out(screen_min_y)
+  );
+
+  pixel_to_world # (
+    .PIXEL_WIDTH(PIXEL_WIDTH),
+    .PIXEL_HEIGHT(PIXEL_HEIGHT),
+    .WORLD_BITS(WORLD_BITS),
+    .SCALE_LEVEL(SCALE_LEVEL)
+  ) get_max_screen_coords (
+    .clk_in(clk_pixel),
+    .camera_x_in(camera_x),
+    .camera_y_in(camera_y),
+    .hcount_in(PIXEL_WIDTH), 
+    .vcount_in(0), // lower v-counts are higher on screen
+    .world_x_out(screen_max_x),
+    .world_y_out(screen_max_y)
+  );  
+
+  manage_environment # (
+    .WORLD_BITS(WORLD_BITS),
+    .MAX_NUM_VERTICES(MAX_NUM_VERTICES)
+  ) env (
+    .clk_in(clk_pixel),
+    .rst_in(sys_rst),
+    .start_in(new_frame),
+    .valid_out(env_stream_valid),
+    .x_out(env_stream_x),
+    .y_out(env_stream_y),
+    .done_out(env_stream_done)
+  );
+
+  logic signed [WORLD_BITS-1:0] on_screen_xs [MAX_OBSTACLES_ON_SCREEN] [MAX_NUM_VERTICES];
+  logic signed [WORLD_BITS-1:0] on_screen_ys [MAX_OBSTACLES_ON_SCREEN] [MAX_NUM_VERTICES];
+  logic [$clog2(MAX_NUM_VERTICES+1)-1:0] num_sides_each_poly [MAX_OBSTACLES_ON_SCREEN];
+  logic [$clog2(MAX_OBSTACLES_ON_SCREEN+1)-1:0] num_polys_on_screen;
+  logic [3:0] obstacle_colors [MAX_OBSTACLES_ON_SCREEN];
+  logic got_all_obstacles;
+
+  get_obstacles_on_screen # (
+    .WORLD_BITS(WORLD_BITS),
+    .MAX_NUM_VERTICES(MAX_NUM_VERTICES),
+    .MAX_OBSTACLES_ON_SCREEN(MAX_OBSTACLES_ON_SCREEN)
+  ) on_screen (
+    .clk_in(clk_pixel),
+    .valid_in(env_stream_valid),
+    .x_in(env_stream_x),
+    .y_in(env_stream_y),
+    .screen_min_x(screen_min_x),
+    .screen_max_x(screen_max_x),
+    .screen_min_y(screen_min_y),
+    .screen_max_y(screen_max_y),
+    .done_in(env_stream_done),
+    .obstacle_xs_out(on_screen_xs),
+    .obstacle_ys_out(on_screen_ys),
+    .obstacles_num_sides_out(num_sides_each_poly),
+    .num_obstacles_out(num_polys_on_screen),
+    .done_out(got_all_obstacles)
+  );
+
+  always_comb begin
+    for (int i = 0; i < MAX_OBSTACLES_ON_SCREEN; i = i + 1) begin
+      obstacle_colors[i] = `LGREEN;
+    end
+  end
+
+  ////////////////////////////////////////////
+  //
   //                 RENDER                     
   //
   ////////////////////////////////////////////
@@ -83,9 +171,13 @@ module top_level(
   localparam PIXEL_HEIGHT = 720;
   localparam SCALE_LEVEL = 0;
   localparam WORLD_BITS = 18;
-  localparam MAX_NUM_VERTICES = 8;
-  localparam MAX_POLYGONS_ON_SCREEN = 4;
+  localparam MAX_OBSTACLES_ON_SCREEN = 12;
+  localparam MAX_NUM_VERTICES = 4;
+  localparam CAR_BODY_VERTICES = 4;
+  localparam CAR_WHEEL_VERTICES = 4;
   localparam BACKGROUND_COLOR = `LBLUE;
+  localparam CAR_BODY_COLOR = `RED;
+  localparam CAR_WHEEL_COLOR = `BROWN;
   localparam EDGE_COLOR = `BLACK;
   localparam EDGE_THICKNESS = 3;
 
@@ -98,17 +190,37 @@ module top_level(
 
   assign camera_x = 0;
   assign camera_y = 0;
+  // assign camera_x = 640;
+  // assign camera_y = 360;
+  always_ff @(posedge clk_pixel) begin
+    if (new_frame) begin
+      if (btn[3]) begin
+        camera_x <= camera_x - 5;
+      end else if (btn[2]) begin
+        camera_x <= camera_x + 5;
+      end else if (btn[1]) begin
+        camera_y <= camera_y - 5;
+      end else if (btn[0]) begin
+        camera_y <= camera_y + 5;
+      end
+    end
+  end
 
-/*
-  assign polygons_xs[0][0] = 100;
-  assign polygons_xs[0][1] = 200;
-  assign polygons_xs[0][2] = 200;
-  assign polygons_xs[0][3] = 100;
+  logic signed [WORLD_BITS-1:0] car_body_x [CAR_BODY_VERTICES];
+  logic signed [WORLD_BITS-1:0] car_body_y [CAR_BODY_VERTICES];
+  logic signed [WORLD_BITS-1:0] car_wheel_1_x [CAR_WHEEL_VERTICES];
+  logic signed [WORLD_BITS-1:0] car_wheel_1_y [CAR_WHEEL_VERTICES];
+  logic signed [WORLD_BITS-1:0] car_wheel_2_x [CAR_WHEEL_VERTICES];
+  logic signed [WORLD_BITS-1:0] car_wheel_2_y [CAR_WHEEL_VERTICES];
 
-  assign polygons_ys[0][0] = 100;
-  assign polygons_ys[0][1] = 100;
-  assign polygons_ys[0][2] = 200;
-  assign polygons_ys[0][3] = 200;
+  assign car_body_x[0] = 500;
+  assign car_body_y[0] = 300;
+  assign car_body_x[1] = 500;
+  assign car_body_y[1] = 400;
+  assign car_body_x[2] = 700;
+  assign car_body_y[2] = 400;
+  assign car_body_x[3] = 700;
+  assign car_body_y[3] = 300;
 
   assign polygons_num_sides[0] = 4;
   assign polygons_colors[0] = `RED;
@@ -141,15 +253,36 @@ module top_level(
   */
   assign num_polygons = 1;
   assign polygons_colors[0] = `RED;
+  assign car_wheel_1_x[0] = 475;
+  assign car_wheel_1_y[0] = 275;
+  assign car_wheel_1_x[1] = 475;
+  assign car_wheel_1_y[1] = 325;
+  assign car_wheel_1_x[2] = 525;
+  assign car_wheel_1_y[2] = 325;
+  assign car_wheel_1_x[3] = 525;
+  assign car_wheel_1_y[3] = 275;
+
+  assign car_wheel_2_x[0] = 675;
+  assign car_wheel_2_y[0] = 275;
+  assign car_wheel_2_x[1] = 675;
+  assign car_wheel_2_y[1] = 325;
+  assign car_wheel_2_x[2] = 725;
+  assign car_wheel_2_y[2] = 325;
+  assign car_wheel_2_x[3] = 725;
+  assign car_wheel_2_y[3] = 275;
 
   render # (
     .PIXEL_WIDTH(PIXEL_WIDTH),
     .PIXEL_HEIGHT(PIXEL_HEIGHT),
     .SCALE_LEVEL(SCALE_LEVEL),
     .WORLD_BITS(WORLD_BITS),
-    .MAX_NUM_VERTICES(MAX_NUM_VERTICES),
-    .MAX_POLYGONS_ON_SCREEN(MAX_POLYGONS_ON_SCREEN),
+    .MAX_OBSTACLES_ON_SCREEN(MAX_OBSTACLES_ON_SCREEN),
+    .OBSTACLE_MAX_VERTICES(MAX_NUM_VERTICES),
+    .CAR_BODY_VERTICES(CAR_BODY_VERTICES),
+    .CAR_WHEEL_VERTICES(CAR_WHEEL_VERTICES),
     .BACKGROUND_COLOR(BACKGROUND_COLOR),
+    .CAR_BODY_COLOR(CAR_BODY_COLOR),
+    .CAR_WHEEL_COLOR(CAR_WHEEL_COLOR),
     .EDGE_COLOR(EDGE_COLOR),
     .EDGE_THICKNESS(EDGE_THICKNESS)
   ) render_game (
@@ -159,11 +292,17 @@ module top_level(
     .vcount_in(vcount),
     .camera_x_in(camera_x),
     .camera_y_in(camera_y),
-    .polygons_xs_in(polygons_xs),
-    .polygons_ys_in(polygons_ys),
-    .polygons_num_sides_in(polygons_num_sides),
-    .num_polygons_in(num_polygons),
-    .colors_in(polygons_colors),
+    .car_body_xs_in(car_body_x),
+    .car_body_ys_in(car_body_y),
+    .car_wheel_1_xs_in(car_wheel_1_x),
+    .car_wheel_1_ys_in(car_wheel_1_y),
+    .car_wheel_2_xs_in(car_wheel_2_x),
+    .car_wheel_2_ys_in(car_wheel_2_y),
+    .obstacles_xs_in(on_screen_xs),
+    .obstacles_ys_in(on_screen_ys),
+    .obstacles_num_sides_in(num_sides_each_poly),
+    .num_obstacles_in(num_polys_on_screen),
+    .colors_in(obstacle_colors),
     .color_out(color_out)
   );
 
