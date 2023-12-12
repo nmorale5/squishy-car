@@ -1,4 +1,4 @@
-module ideal #(NUM_NODES = 10, POSITION_SIZE=8, VELOCITY_SIZE=8, FORCE_SIZE=8)(
+module ideal #(NUM_NODES = 10, CONSTANT_SIZE, POSITION_SIZE=8, VELOCITY_SIZE=8, FORCE_SIZE=8)(
   input  wire clk_in,
   input  wire rst_in,
   input  wire input_valid,
@@ -7,20 +7,28 @@ module ideal #(NUM_NODES = 10, POSITION_SIZE=8, VELOCITY_SIZE=8, FORCE_SIZE=8)(
   input  wire signed [POSITION_SIZE-1:0] nodes [1:0][NUM_NODES],
   input  wire signed [POSITION_SIZE-1:0] ideal [1:0][NUM_NODES],
   input  wire signed [VELOCITY_SIZE-1:0] velocities [1:0][NUM_NODES],
-  output logic signed [FORCE_SIZE-1:0] ideal_forces [1:0][NUM_NODES],
-  output logic signed [FORCE_SIZE-1:0] axle_force [1:0],
+  output logic signed [FORCE_SIZE-1:0] force_x_out,
+  output logic signed [FORCE_SIZE-1:0] force_y_out,
+  output logic force_out_valid,
+  output logic signed [FORCE_SIZE-1:0] axle_force_x,
+  output logic signed [FORCE_SIZE-1:0] axle_force_y,
   output logic output_valid
   
 );
 
-logic signed [FORCE_SIZE-1:0] spring_forces [1:0][NUM_NODES];
+//logic signed [FORCE_SIZE-1:0] spring_forces [1:0][NUM_NODES];
+logic signed [FORCE_SIZE-1:0] spring_force_x;
+logic signed [FORCE_SIZE-1:0] spring_force_y;
 logic begin_springs, springs_done;
 logic [$clog2(NUM_NODES)-1:0] springs [1:0][NUM_NODES];
 logic signed [POSITION_SIZE-1:0] rotated_ideal [1:0][NUM_NODES];
+logic signed [FORCE_SIZE-1:0] ideal_forces [1:0][NUM_NODES];
+logic springs_force_valid;
+
 
 
 //might have force go the opposite way
-ideal_springs #(NUM_NODES, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) springs_instance (
+ideal_springs #(NUM_NODES, CONSTANT_SIZE, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) springs_instance (
   .clk_in(clk_in),
   .rst_in(rst_in),
   .input_valid(begin_springs),
@@ -28,8 +36,11 @@ ideal_springs #(NUM_NODES, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) springs_ins
   .ideal_nodes(rotated_ideal),
   .velocities(velocities),
   .axle_velocity(axle_velocity),
-  .spring_forces(spring_forces),
-  .axle_force(axle_force),
+  .force_y_out(spring_force_x),
+  .force_x_out(spring_force_y),
+  .force_out_valid(springs_force_valid),
+  .axle_force_x(axle_force_x),
+  .axle_force_y(axle_force_y),
   .output_valid(springs_done)
 );
 
@@ -39,8 +50,9 @@ logic signed [FORCE_SIZE-1:0] k;
 logic signed [FORCE_SIZE-1:0] b;
 logic [POSITION_SIZE-1:0] actual_node;
 logic [POSITION_SIZE-1:0] ideal_node;
-logic [POSITION_SIZE * NUM_NODES] cross_sum; //fix size later
-logic [POSITION_SIZE * NUM_NODES] dot_sum; //fix size later
+logic [POSITION_SIZE * NUM_NODES-1:0] cross_sum; //fix size later
+logic [POSITION_SIZE * NUM_NODES-1:0] dot_sum; //fix size later
+logic [2 * POSITION_SIZE+1-1:0] cross_product, dot_product;
 
 assign k = 5;
 assign b = 1;
@@ -99,6 +111,14 @@ always_ff @(posedge clk_in) begin
         SPRINGS: begin
             //apply the spring forces with ideal shifted to axle position
             //ideal should have a com of 0
+            if (springs_force_valid == 1) begin
+              force_x_out <= spring_force_x;
+              force_y_out <= spring_force_y;
+              force_out_valid <= 1;
+            end else begin
+              force_out_valid <= 0;
+            end
+            
             begin_springs <= 0;
             if (springs_done) begin
               state <= RESULT;
@@ -106,8 +126,8 @@ always_ff @(posedge clk_in) begin
 
         end
         RESULT: begin
-          state <= IDLE;
-          output_valid <= 1;
+            output_valid <= 1;
+            state <= IDLE;
         end
 
     endcase

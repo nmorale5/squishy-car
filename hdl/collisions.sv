@@ -1,8 +1,8 @@
-module collisions #(parameter DT = 1, parameter POSITION_SIZE=8, parameter VELOCITY_SIZE, parameter FORCE_SIZE =8, parameter NUM_VERTICES=5, parameter NUM_OBSTACLES=5, parameter ACCELERATION_SIZE = 3)(
+module collisions #(parameter DT = 1, parameter POSITION_SIZE=8, parameter VELOCITY_SIZE=7, parameter FORCE_SIZE =8, parameter NUM_VERTICES=5, parameter NUM_OBSTACLES=5)(
   input  wire clk_in,
   input  wire rst_in,
   input  wire begin_in,
-  input  wire [POSITION_SIZE-1:0] obstacles_in [1:0][NUM_VERTICES][NUM_OBSTACLES],
+  input  wire signed [POSITION_SIZE-1:0] obstacles_in [1:0][NUM_VERTICES][NUM_OBSTACLES],
   input  wire [$clog2(NUM_VERTICES):0] all_num_vertices_in [NUM_OBSTACLES], //array of num_vertices
   input  wire [$clog2(NUM_OBSTACLES)-1:0] num_obstacles_in,
   input  wire signed [POSITION_SIZE-1:0] pos_x_in,
@@ -13,8 +13,8 @@ module collisions #(parameter DT = 1, parameter POSITION_SIZE=8, parameter VELOC
   output logic signed [POSITION_SIZE-1:0] new_pos_y,
   output logic signed [VELOCITY_SIZE-1:0] new_vel_x,
   output logic signed [VELOCITY_SIZE-1:0] new_vel_y,
-  output logic signed [ACCELERATION_SIZE-1:0] acceleration_x_out,
-  output logic signed [ACCELERATION_SIZE-1:0] acceleration_y_out,
+  output logic signed [FORCE_SIZE-1:0] force_x_out,
+  output logic signed [FORCE_SIZE-1:0] force_y_out,
   output logic result_out
 );
 
@@ -42,14 +42,15 @@ module collisions #(parameter DT = 1, parameter POSITION_SIZE=8, parameter VELOC
   logic [OBSTACLE_COUNT_SIZE-1:0] obstacle_num, last_obstacle_num;
   logic [OBSTACLE_COUNT_SIZE-1:0] collision_obstacle;
   logic signed [VELOCITY_SIZE-1:0] vx_new, vy_new;
-  logic signed [ACCELERATION_SIZE-1:0] acceleration_x, acceleration_y;
-  logic signed [ACCELERATION_SIZE-1:0] coll_acc_x, coll_acc_y;
+  logic signed [FORCE_SIZE-1:0] force_x, force_y;
+  logic signed [FORCE_SIZE-1:0] coll_force_x, coll_force_y;
+  logic collision_result;
 
   //for testing
   logic collision_detected;
   logic coll_else;
 
-do_collision #(DT, POSITION_SIZE,VELOCITY_SIZE, ACCELERATION_SIZE, NUM_VERTICES) collision_doer (
+do_collision #(DT, POSITION_SIZE,VELOCITY_SIZE, FORCE_SIZE, NUM_VERTICES) collision_doer (
     .clk_in(clk_in),
     .rst_in(rst_in),
     .begin_in(begin_do),
@@ -68,8 +69,8 @@ do_collision #(DT, POSITION_SIZE,VELOCITY_SIZE, ACCELERATION_SIZE, NUM_VERTICES)
 	.vel_y_new(vy_new),
 	.x_int_out(x_int),
 	.y_int_out(y_int),
-	.acceleration_x(coll_acc_x),
-    .acceleration_y(coll_acc_y),
+	.acceleration_x(coll_force_x),
+    .acceleration_y(coll_force_y),
 	.was_collision(was_collision)
   );
 
@@ -94,8 +95,8 @@ do_collision #(DT, POSITION_SIZE,VELOCITY_SIZE, ACCELERATION_SIZE, NUM_VERTICES)
 					vel_y <= vel_y_in;
 					dx <= vel_x_in * DT;
 					dy <= vel_y_in * DT;
-					acceleration_x <= 0;
-					acceleration_y <= 0;
+					force_x <= 0;
+					force_y <= 0;
 
 					//store num information
 
@@ -123,8 +124,8 @@ do_collision #(DT, POSITION_SIZE,VELOCITY_SIZE, ACCELERATION_SIZE, NUM_VERTICES)
 				if (collision_result == 1) begin
 					if (was_collision == 1) begin
 						collision_obstacle <= last_obstacle_num;
-						acceleration_x <= acceleration_x + coll_acc_x;
-						acceleration_y <= acceleration_y + coll_acc_y;
+						force_x <= force_x + coll_force_x;
+						force_y <= force_y + coll_force_y;
 						//set module outputs if this is the last collision
 						new_pos_x <= x_new;
 						new_pos_y <= y_new;
@@ -167,6 +168,8 @@ do_collision #(DT, POSITION_SIZE,VELOCITY_SIZE, ACCELERATION_SIZE, NUM_VERTICES)
 			RESULT: begin
 				state <= IDLE;
 				result_out <= 1;
+				force_x_out <= force_x;
+				force_y_out <= force_y;
 			end
 		endcase
 	end

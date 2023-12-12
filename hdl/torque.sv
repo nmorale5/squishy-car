@@ -5,7 +5,9 @@ module torque #(NUM_NODES = 10, POSITION_SIZE=8, FORCE_SIZE=8, TORQUE=4)(
   input  wire signed [2:0] drive,
   input  wire signed [POSITION_SIZE-1:0] nodes [1:0][NUM_NODES],
   input  wire signed [POSITION_SIZE-1:0] axle [1:0], 
-  output logic signed [FORCE_SIZE-1:0] torque_forces [1:0][NUM_NODES],
+  output logic signed [FORCE_SIZE-1:0] force_x_out,
+  output logic signed [FORCE_SIZE-1:0] force_y_out,
+  output logic force_out_valid,
   output logic result_out
 
 );
@@ -15,24 +17,34 @@ module torque #(NUM_NODES = 10, POSITION_SIZE=8, FORCE_SIZE=8, TORQUE=4)(
 
 //force needs to go in direction perpendicular the line connecting the point
 //and the axle
+typedef enum {IDLE = 0, RESULT=1} torque_state;
+torque_state state = IDLE;
 
-always_comb begin
-  integer i;
+logic [$clog2(NUM_NODES):0] current_node;
 
-  //generate
-    for (i = 0; i< NUM_NODES; i = i + 1) begin
-      torque_forces[0][i] = (axle[1] - nodes[1][i]) * drive * TORQUE;
-      torque_forces[1][i] = (nodes[0][i] - axle[0]) * drive * TORQUE;
-    end
-  //endgenerate
-end
 
 always_ff @(posedge clk_in) begin
-  if (begin_in) begin
-    result_out <= 1;
-  end else begin
-    result_out <= 0;
-  end
+  case(state)
+    IDLE: begin
+      result_out <= 0;
+      if (begin_in) begin
+        state <= RESULT;
+        current_node <= 0;
+      end 
+    end
+    RESULT: begin
+      if (current_node == NUM_NODES) begin
+        state <= IDLE;
+        result_out <= 1;
+        force_out_valid <= 0;
+      end else begin
+        current_node <= current_node + 1;
+        force_x_out <= (axle[1] - nodes[1][current_node]) * drive * TORQUE;
+        force_y_out <= (nodes[0][current_node] - axle[0]) * drive * TORQUE;
+        force_out_valid <= 1;
+      end
+    end
+  endcase
 
 end
 

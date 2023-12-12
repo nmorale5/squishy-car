@@ -82,7 +82,7 @@ module top_level(
   localparam PIXEL_WIDTH = 1280;
   localparam PIXEL_HEIGHT = 720;
   localparam SCALE_LEVEL = 0;
-  localparam WORLD_BITS = 32;
+  localparam WORLD_BITS = 18;
   localparam MAX_NUM_VERTICES = 8;
   localparam MAX_POLYGONS_ON_SCREEN = 4;
   localparam BACKGROUND_COLOR = `LBLUE;
@@ -96,9 +96,10 @@ module top_level(
   logic [$clog2(MAX_POLYGONS_ON_SCREEN+1)-1:0] num_polygons;
   logic [3:0] polygons_colors [MAX_POLYGONS_ON_SCREEN];
 
-  assign camera_x = 640;
-  assign camera_y = 360;
+  assign camera_x = 0;
+  assign camera_y = 0;
 
+/*
   assign polygons_xs[0][0] = 100;
   assign polygons_xs[0][1] = 200;
   assign polygons_xs[0][2] = 200;
@@ -137,8 +138,9 @@ module top_level(
 
   assign polygons_num_sides[2] = 5;
   assign polygons_colors[2] = `YELLOW;
-  
-  assign num_polygons = 3;
+  */
+  assign num_polygons = 1;
+  assign polygons_colors[0] = `RED;
 
   render # (
     .PIXEL_WIDTH(PIXEL_WIDTH),
@@ -165,6 +167,15 @@ module top_level(
     .color_out(color_out)
   );
 
+  always_comb begin
+    for (int i = 0; i < NUM_NODES; i = i + 1) begin
+      polygons_xs[0][i] = nodes[0][i];
+      polygons_ys[0][i] = nodes[1][i];
+    end
+    polygons_num_sides[0] = NUM_NODES;
+
+  end
+
   //Physics
   // Constants for testing
   localparam NUM_SPRINGS = 10;
@@ -177,70 +188,152 @@ module top_level(
   localparam TORQUE = 4;
   localparam GRAVITY = -1;
   localparam DT = 1;
+  localparam CONSTANT_SIZE = 4;
 
   // Signals for testing
   logic begin_update, result_out;
   logic [2:0] drive = 0;
-  logic [$clog2(NUM_NODES)-1:0] springs [1:0][NUM_SPRINGS];
+  logic [$clog2(NUM_NODES):0] springs [1:0][NUM_SPRINGS];
   logic signed [POSITION_SIZE-1:0] ideal [1:0][NUM_NODES];
   logic signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES];
   logic [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES];
-  logic [POSITION_SIZE-1:0] axle [1:0];
+  logic signed [POSITION_SIZE-1:0] axle [1:0];
   logic [$clog2(NUM_OBSTACLES)-1:0] num_obstacles;
   logic signed [POSITION_SIZE-1:0] nodes [1:0][NUM_NODES];
+  logic signed [POSITION_SIZE-1:0] new_nodes [1:0][NUM_NODES];
   logic signed [VELOCITY_SIZE-1:0] velocities [1:0][NUM_NODES];
+  logic signed [VELOCITY_SIZE-1:0] new_velocities [1:0][NUM_NODES];
   logic signed [FORCE_SIZE-1:0] axle_force [1:0];
   logic signed [VELOCITY_SIZE-1:0] axle_velocity [1:0];
+  logic [CONSTANT_SIZE-1:0] constants [4];
+  logic [POSITION_SIZE-1:0] equilibriums [NUM_SPRINGS];
+  logic signed [POSITION_SIZE-1:0] new_node_x, new_node_y;
+  logic signed [VELOCITY_SIZE-1:0] new_velocity_x, new_velocity_y;
+  logic signed [FORCE_SIZE-1:0] axle_force_x, axle_force_y;
+  logic new_node_valid, new_velocity_valid;
+  logic [$clog2(NUM_NODES):0] new_node_count = 0;
+  logic [$clog2(NUM_NODES):0] new_velocity_count = 0;
+
   assign begin_update = new_frame;
 
-  assign axle[0] = 5;
-  assign axle[1] = 2;
-  assign axle_velocity[0] = 0;
-  assign axle_velocity[1] = 0;
+  always_ff @(posedge clk_100mhz) begin
+    if (sys_rst) begin
+      //game_initialized <= 0;
+      axle[0] <= 5;
+      axle[1] <= 2;
+      axle_velocity[0] <= 0;
+      axle_velocity[1] <= 0;
+
+      all_num_vertices[0] <= 4;
+      num_obstacles <= 1;
+
+      ideal[0][0] = -30;
+      ideal[1][0] = -20;
+      ideal[0][1] = -20;
+      ideal[1][1] = 20;
+      ideal[0][2] = 20;
+      ideal[1][2] = 20;
+      ideal[0][3] = 30;
+      ideal[1][3] = -20;
 
 
-  assign all_num_vertices[0] = 8;
-  assign num_obstacles = 1;
+      nodes[0][0] <= -30;
+      nodes[1][0] <= -20;
+      nodes[0][1] <= -20;
+      nodes[1][1] <= 20;
+      nodes[0][2] <= 20;
+      nodes[1][2] <= 20;
+      nodes[0][3] <= 30;
+      nodes[1][3] <= -20;
 
-  assign nodes[0][0] = -3;
-  assign nodes[1][0] = -2;
-  assign nodes[0][1] = -2;
-  assign nodes[1][1] = 2;
-  assign nodes[0][2] = 2;
-  assign nodes[1][2] = 2;
-  assign nodes[0][3] = 3;
-  assign nodes[1][3] = -2;
+      velocities[0][0] <= 0;
+      velocities[1][0] <= 0;
+      velocities[0][1] <= 0;
+      velocities[1][1] <= 0;
+      velocities[0][2] <= 0;
+      velocities[1][2] <= 0;
+      velocities[0][3] <= 0;
+      velocities[1][3] <= 0;
 
-  assign velocities[0][0] = 0;
-  assign velocities[1][0] = 0;
-  assign velocities[0][1] = 0;
-  assign velocities[1][1] = 0;
-  assign velocities[0][2] = 0;
-  assign velocities[1][2] = 0;
-  assign velocities[0][3] = 0;
-  assign velocities[1][3] = 0;
+      constants[0] <= 1;
+      constants[1] <= 1;
 
-  assign ideal[0][0] = -3;
-  assign ideal[1][0] = -2;
-  assign ideal[0][1] = -2;
-  assign ideal[1][1] = 2;
-  assign ideal[0][2] = 2;
-  assign ideal[1][2] = 2;
-  assign ideal[0][3] = 3;
-  assign ideal[1][3] = -2;
+      springs[0][0] = 0;
+      springs[1][0] = 1;
+      springs[0][1] = 1;
+      springs[1][1] = 2;
+      springs[0][2] = 2;
+      springs[1][2] = 3;
+      springs[0][3] = 3;
+      springs[1][3] = 0;
+      springs[0][4] = 0;
+      springs[1][4] = 2;
+      springs[0][5] = 1;
+      springs[1][5] = 3;
 
-  assign springs[0][0] = 0;
-  assign springs[1][0] = 1;
-  assign springs[0][1] = 1;
-  assign springs[1][1] = 2;
-  assign springs[0][2] = 2;
-  assign springs[1][2] = 3;
-  assign springs[0][3] = 3;
-  assign springs[1][3] = 0;
-  assign springs[0][4] = 0;
-  assign springs[1][4] = 2;
-  assign springs[0][5] = 1;
-  assign springs[1][5] = 3;
+    end
+
+  end
+
+
+  logic [POSITION_SIZE-1:0] node1 [1:0];
+  logic [POSITION_SIZE-1:0] node2 [1:0];
+  
+  always_comb begin
+    for (int i = 0; i < NUM_SPRINGS; i = i + 1) begin
+      node1[0] = ideal[springs[0][i]][0];
+      node2[0] = ideal[springs[1][i]][0];
+      node1[1] = ideal[springs[0][i]][1];
+      node2[1] = ideal[springs[1][i]][1];
+      equilibriums[i] = 40;//$sqrt((node2[1]-node1[1]) * (node2[1]-node1[1]) + (node2[0]-node1[0]) * (node2[0]-node1[0]));
+    end
+
+  end 
+
+  
+  //assign equilibriums[0] = 4;
+  //assign equilibriums[1] = 2
+
+  always_ff @(posedge clk_100mhz) begin
+
+
+    if (new_node_valid == 1) begin
+      new_node_count <= new_node_count + 1;
+      new_nodes[0][new_node_count] <= new_node_x;
+      new_nodes[1][new_node_count] <= new_node_y;
+    end
+
+    if (new_velocity_valid == 1) begin
+      new_velocity_count <= new_velocity_count + 1;
+      new_velocities[0][new_velocity_count] <= new_velocity_x;
+      new_velocities[1][new_velocity_count] <= new_velocity_y;
+    end
+
+    if (result_out == 1) begin
+      new_node_count <= 0;
+      new_velocity_count <= 0;
+      nodes[0][0] <= new_nodes[0][0];
+      nodes[1][0] <= new_nodes[1][0];
+      nodes[0][1] <= new_nodes[0][1];
+      nodes[1][1] <= new_nodes[1][1];
+      nodes[0][2] <= new_nodes[0][2];
+      nodes[1][2] <= new_nodes[1][3];
+      nodes[0][3] <= new_nodes[0][3];
+      nodes[1][3] <= new_nodes[1][3];
+
+      velocities[0][0] <= new_velocities[0][0];
+      velocities[1][0] <= new_velocities[1][0];
+      velocities[0][1] <= new_velocities[0][1];
+      velocities[1][1] <= new_velocities[1][1];
+      velocities[0][2] <= new_velocities[0][2];
+      velocities[1][2] <= new_velocities[1][2];
+      velocities[0][3] <= new_velocities[0][3];
+      velocities[1][3] <= new_velocities[1][3];
+      //begin_update <= 1;
+    end else begin
+      //begin_update <= 0;
+    end
+  end
 
 
 
@@ -249,6 +342,7 @@ module top_level(
     .NUM_NODES(NUM_NODES),
     .NUM_VERTICES(NUM_VERTICES),
     .NUM_OBSTACLES(NUM_OBSTACLES),
+    .CONSTANT_SIZE(CONSTANT_SIZE),
     .POSITION_SIZE(POSITION_SIZE),
     .VELOCITY_SIZE(VELOCITY_SIZE),
     .FORCE_SIZE(FORCE_SIZE),
@@ -256,9 +350,10 @@ module top_level(
     .GRAVITY(GRAVITY),
     .DT(DT)
   ) wheel_updater (
-    .clk_in(clk_in),
-    .rst_in(rst_in),
+    .clk_in(clk_100mhz),
+    .rst_in(sys_rst),
     .begin_in(begin_update),
+    .constants(constants),
     .drive(drive),
     .ideal(ideal),
     .obstacles(obstacles),
@@ -267,11 +362,17 @@ module top_level(
     .nodes_in(nodes),
     .velocities_in(velocities),
     .springs(springs),
+    .equilibriums(equilibriums),
     .axle(axle),
     .axle_velocity(axle_velocity),
-    .nodes_out(new_nodes),
-    .velocities_out(new_velocities),
-    .axle_force(axle_force),
+    .node_out_x(new_node_x),
+    .node_out_y(new_node_y),
+    .node_out_valid(new_node_valid),
+    .velocity_out_x(new_velocity_x),
+    .velocity_out_y(new_velocity_y),
+    .velocity_out_valid(new_velocity_valid),
+    .axle_force_x(axle_force_x),
+    .axle_force_y(axle_force_y),
     .result_out(result_out)
   );
 

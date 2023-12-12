@@ -88,7 +88,7 @@ module collisions_tb();
   //initial block...this is our test simulation
   initial begin
     $dumpfile("vsg.vcd"); //file to store value change dump (vcd)
-    $dumpvars(1,update_point_tb,point_update, point_update.collision_doer, point_update.collision_doer.collision_check, point_update.collision_doer.new_values);
+    $dumpvars(1,collisions_tb);//update_point_tb,point_update, point_update.collision_doer, point_update.collision_doer.collision_check, point_update.collision_doer.new_values);
 
     $display("Starting Sim"); //print nice message at start
     clk_in = 1;

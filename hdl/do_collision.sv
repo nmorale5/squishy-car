@@ -2,14 +2,14 @@ module do_collision #(DT = 1, POSITION_SIZE = 8, VELOCITY_SIZE=8, ACCELERATION_S
   input  wire clk_in,
   input  wire rst_in,
   input  wire begin_in,
-  input  wire [POSITION_SIZE-1:0] obstacle_in [1:0][NUM_VERTICES-1:0],
+  input  wire signed [POSITION_SIZE-1:0] obstacle_in [1:0][NUM_VERTICES],
   input  wire [$clog2(NUM_VERTICES):0] num_vertices,
-  input  wire [POSITION_SIZE-1:0] pos_x_in,
-  input  wire [POSITION_SIZE-1:0] pos_y_in,
-  input  wire [VELOCITY_SIZE-1:0] vel_x_in,
-  input  wire [VELOCITY_SIZE-1:0] vel_y_in,
-  input  wire [POSITION_SIZE-1:0] dx_in,
-  input  wire [POSITION_SIZE-1:0] dy_in,
+  input  wire signed [POSITION_SIZE-1:0] pos_x_in,
+  input  wire signed [POSITION_SIZE-1:0] pos_y_in,
+  input  wire signed [VELOCITY_SIZE-1:0] vel_x_in,
+  input  wire signed [VELOCITY_SIZE-1:0] vel_y_in,
+  input  wire signed [POSITION_SIZE-1:0] dx_in,
+  input  wire signed [POSITION_SIZE-1:0] dy_in,
   //output logic ready,
   output logic result_out,
   output logic signed [POSITION_SIZE-1:0] x_new,
@@ -209,11 +209,12 @@ module collision_checker #(POSITION_SIZE=8,  DT = 1)(
 
 	logic signed [2 * POSITION_SIZE:0] t1;
 	logic signed [2 * POSITION_SIZE:0] t2;
-	logic signed [2*POSITION_SIZE + 1 - 1:0] x_num, y_num, denom;
+	logic signed [2 * POSITION_SIZE + 2 -1:0] denom;
+	logic signed [2*POSITION_SIZE + 1 - 1:0] x_num, y_num;
 	logic signed [POSITION_SIZE+1 -1:0] rise,run;
+	//logic signed [2 * (POSITION_SIZE + 1) + 1 -1:0]
 	logic coll_x,coll_y,not_start, going_inside;
 
-	assign v_mag = run*run + rise * rise;
 	assign rise = (v2[1]-v1[1]);
 	assign run = (v2[0]-v1[0]);
 	assign denom = dy*run-dx*rise;

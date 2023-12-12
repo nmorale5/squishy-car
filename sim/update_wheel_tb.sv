@@ -7,7 +7,7 @@ module update_wheel_tb();
   logic clk_in;
   
   parameter POSITION_SIZE = 8;
-  parameter VELOCITY_SIZE = 8;
+  parameter VELOCITY_SIZE = 6;
   parameter NUM_VERTICES = 8;
   parameter NUM_OBSTACLES = 3;
   parameter NUM_NODES = 4;
@@ -17,6 +17,7 @@ module update_wheel_tb();
   parameter FORCE_SIZE = 8;
   parameter GRAVITY = -1;
   parameter TORQUE = 4;
+  parameter CONSTANT_SIZE = 4;
 
   logic begin_update, result_out;
   logic [2:0] drive = 0;
@@ -30,6 +31,7 @@ module update_wheel_tb();
   logic signed [VELOCITY_SIZE-1:0] velocities [1:0][NUM_NODES];
   logic signed [FORCE_SIZE-1:0] axle_force [1:0];
   logic signed [VELOCITY_SIZE-1:0] axle_velocity [1:0];
+
   //logic signed [POSITION_SIZE-1:0] com [1:0];
 
   assign axle[0] = 5;
@@ -58,14 +60,7 @@ module update_wheel_tb();
   assign all_num_vertices[0] = 8;
   assign num_obstacles = 1;
 
-  assign nodes[0][0] = -3;
-  assign nodes[1][0] = -2;
-  assign nodes[0][1] = -2;
-  assign nodes[1][1] = 2;
-  assign nodes[0][2] = 2;
-  assign nodes[1][2] = 2;
-  assign nodes[0][3] = 3;
-  assign nodes[1][3] = -2;
+
 
   assign ideal[0][0] = -3;
   assign ideal[1][0] = -2;
@@ -89,14 +84,18 @@ module update_wheel_tb();
   assign springs[0][5] = 1;
   assign springs[1][5] = 3;
 
-  assign velocities[0][0] = 0;
-  assign velocities[1][0] = 0;
-  assign velocities[0][1] = 0;
-  assign velocities[1][1] = 0;
-  assign velocities[0][2] = 0;
-  assign velocities[1][2] = 0;
-  assign velocities[0][3] = 0;
-  assign velocities[1][3] = 0;
+
+  logic signed [POSITION_SIZE-1:0] new_nodes [1:0][NUM_NODES];
+  logic signed [VELOCITY_SIZE-1:0] new_velocities [1:0][NUM_NODES];
+  logic signed [POSITION_SIZE-1:0] new_node_x, new_node_y;
+  logic signed [VELOCITY_SIZE-1:0] new_velocity_x, new_velocity_y;
+  logic signed [FORCE_SIZE-1:0] axle_force_x, axle_force_y;
+  logic new_node_valid, new_velocity_valid;
+  logic [POSITION_SIZE-1:0] equilibriums [NUM_SPRINGS];
+  logic [CONSTANT_SIZE-1:0] constants [4];
+
+  assign constants[0] = 1; //springs_k
+  assign constants[1] = 2; //springs_b
 
   // Instantiate the update_wheel module
   update_wheel #(
@@ -104,6 +103,7 @@ module update_wheel_tb();
     .NUM_NODES(NUM_NODES),
     .NUM_VERTICES(NUM_VERTICES),
     .NUM_OBSTACLES(NUM_OBSTACLES),
+    .CONSTANT_SIZE(CONSTANT_SIZE),
     .POSITION_SIZE(POSITION_SIZE),
     .VELOCITY_SIZE(VELOCITY_SIZE),
     .FORCE_SIZE(FORCE_SIZE),
@@ -114,6 +114,7 @@ module update_wheel_tb();
     .clk_in(clk_in),
     .rst_in(rst_in),
     .begin_in(begin_update),
+    .constants(constants),
     .drive(drive),
     .ideal(ideal),
     .obstacles(obstacles),
@@ -122,31 +123,100 @@ module update_wheel_tb();
     .nodes_in(nodes),
     .velocities_in(velocities),
     .springs(springs),
+    .equilibriums(equilibriums),
     .axle(axle),
     .axle_velocity(axle_velocity),
-    .nodes_out(new_nodes),
-    .velocities_out(new_velocities),
-    .axle_force(axle_force),
+    .node_out_x(new_node_x),
+    .node_out_y(new_node_y),
+    .node_out_valid(new_node_valid),
+    .velocity_out_x(new_velocity_x),
+    .velocity_out_y(new_velocity_y),
+    .velocity_out_valid(new_velocity_valid),
+    .axle_force_x(axle_force_x),
+    .axle_force_y(axle_force_y),
     .result_out(result_out)
   );
 
-  logic signed [POSITION_SIZE-1:0] new_nodes [1:0][NUM_NODES];
-  logic signed [VELOCITY_SIZE-1:0] new_velocities [1:0][NUM_NODES];
+
   //logic signed [POSITION_SIZE-1:0] new_com [1:0];
+
+  logic signed [POSITION_SIZE-1:0] node_x;
+  logic signed [VELOCITY_SIZE-1:0] velocity_x;
+  logic signed [POSITION_SIZE-1:0] node_y;
+  logic signed [VELOCITY_SIZE-1:0] velocity_y, new_velocities_x, new_velocities_y;
+
+  assign node_x = nodes[0][0];
+  assign velocity_x = velocities[0][0];
+  assign node_y = nodes[1][0];
+  assign velocity_y = velocities[1][0];
+  assign new_velocities_x = new_velocities[0][0];
+  assign new_velocities_y = new_velocities[1][0];
+
+  logic [$clog2(NUM_NODES):0] new_node_count, new_velocity_count;
+
+  //assign new_nodes[0][0] = 0;
 
   always begin
       #5;  //every 5 ns switch...so period of clock is 10 ns...100 MHz clock
       clk_in = !clk_in;
   end
-  always begin
-    #10
+
+  logic [POSITION_SIZE-1:0] node1 [1:0];
+  logic [POSITION_SIZE-1:0] node2 [1:0];
+  
+  always_comb begin
+    for (int i = 0; i < NUM_SPRINGS; i = i + 1) begin
+      node1[0] = ideal[springs[0][i]][0];
+      node2[0] = ideal[springs[1][i]][0];
+      node1[1] = ideal[springs[0][i]][1];
+      node2[1] = ideal[springs[1][i]][1];
+      equilibriums[i] = $sqrt((node2[1]-node1[1]) * (node2[1]-node1[1]) + (node2[0]-node1[0]) * (node2[0]-node1[0]));
+    end
+
+  end
+
+
+  always_ff @(posedge clk_in) begin
+    if (new_node_valid == 1) begin
+      new_node_count <= new_node_count + 1;
+      new_nodes[0][new_node_count] <= new_node_x;
+      new_nodes[1][new_node_count] <= new_node_y;
+    end
+
+    if (new_velocity_valid == 1) begin
+      new_velocity_count <= new_velocity_count + 1;
+      new_velocities[0][new_velocity_count] <= new_velocity_x;
+      new_velocities[1][new_velocity_count] <= new_velocity_y;
+    end
+
     if (result_out == 1) begin
+      new_node_count <= 0;
+      new_velocity_count <= 0;
+      nodes[0][0] <= new_nodes[0][0];
+      nodes[1][0] <= new_nodes[1][0];
+      nodes[0][1] <= new_nodes[0][1];
+      nodes[1][1] <= new_nodes[1][1];
+      nodes[0][2] <= new_nodes[0][2];
+      nodes[1][2] <= new_nodes[1][3];
+      nodes[0][3] <= new_nodes[0][3];
+      nodes[1][3] <= new_nodes[1][3];
+
+      velocities[0][0] <= new_velocities[0][0];
+      velocities[1][0] <= new_velocities[1][0];
+      velocities[0][1] <= new_velocities[0][1];
+      velocities[1][1] <= new_velocities[1][1];
+      velocities[0][2] <= new_velocities[0][2];
+      velocities[1][2] <= new_velocities[1][2];
+      velocities[0][3] <= new_velocities[0][3];
+      velocities[1][3] <= new_velocities[1][3];
       begin_update <= 1;
-      #10
+    end else begin
       begin_update <= 0;
     end
-        
   end
+    
+        
+
   //initial block...this is our test simulation
   initial begin
     $dumpfile("vsg.vcd"); //file to store value change dump (vcd)
@@ -155,15 +225,38 @@ module update_wheel_tb();
     $display("Starting Sim"); //print nice message at start
     clk_in = 1;
     rst_in = 0;
+    begin_update = 0;
     #10;
     rst_in = 1;
+    
     #10;
     rst_in = 0;
     begin_update = 1;
+    nodes[0][0] = 3;
+     nodes[1][0] = -2;
+     nodes[0][1] = -2;
+     nodes[1][1] = 2;
+     nodes[0][2] = 2;
+     nodes[1][2] = 2;
+     nodes[0][3] = 3;
+     nodes[1][3] = -2;
+
+     velocities[0][0] = 0;
+     velocities[1][0] = 0;
+     velocities[0][1] = 0;
+     velocities[1][1] = 0;
+     velocities[0][2] = 0;
+     velocities[1][2] = 0;
+     velocities[0][3] = 0;
+     velocities[1][3] = 0;
+
+     new_node_count = 0;
+     new_velocity_count = 0;
     #10
+
     begin_update = 0;
 
-    #30000
+    #3000
 
     $display("Simulation finished");
     $finish;

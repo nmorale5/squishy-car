@@ -1,19 +1,20 @@
 `timescale 1ns / 1ps
 `default_nettype none
-//comment here
+//divider is taking a long time, can improve with powers.
 module springs_tb();
   logic rst_in;
   logic clk_in;
   
   parameter POSITION_SIZE = 8;
   parameter VELOCITY_SIZE = 8;
+  parameter FORCE_SIZE = 5;
   parameter num_vert = 8;
   parameter num_obst = 1;
   parameter dt = 1;
   parameter ACCELERATION_SIZE = 8;
-  parameter NUM_SPRINGS = 3;
+  parameter NUM_SPRINGS = 2;
   parameter NUM_NODES = 3;
-  parameter FORCE_SIZE = 8;
+  parameter CONSTANT_SIZE = 4;
 
 
 
@@ -22,19 +23,31 @@ module springs_tb();
 logic begin_calc;
 logic signed [POSITION_SIZE-1:0] nodes [1:0][NUM_NODES];
 logic signed [VELOCITY_SIZE-1:0] velocities [1:0][NUM_NODES];
-logic [$clog2(NUM_NODES)-1:0] springs [1:0][NUM_SPRINGS];
+logic [$clog2(NUM_NODES):0] springs [1:0][NUM_SPRINGS];
+logic [POSITION_SIZE-1:0] equilibriums [NUM_SPRINGS];
+logic [FORCE_SIZE-1:0] force_x_out, force_y_out;
+logic [CONSTANT_SIZE-1:0] k,b;
+assign k = 2;
+assign b = 1;
+
+
 logic signed [FORCE_SIZE-1:0] spring_forces [1:0][NUM_NODES];
-logic springs_done;
+logic springs_done, force_valid;
 
 // Instantiate the springs module
-springs #(NUM_SPRINGS, NUM_NODES, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) springs_instance (
+springs #(NUM_SPRINGS, NUM_NODES, CONSTANT_SIZE, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) springs_instance (
   .clk_in(clk_in),
   .rst_in(rst_in),
   .input_valid(begin_calc),
+  .k(k),
+  .b(b),
   .nodes(nodes),
   .velocities(velocities),
   .springs(springs),
-  .spring_forces(spring_forces),
+  .equilibriums(equilibriums),
+  .spring_force_x(force_x_out),
+  .spring_force_y(force_y_out),
+  .spring_force_valid(force_valid),
   .output_valid(springs_done)
 );
 
@@ -56,8 +69,12 @@ springs #(NUM_SPRINGS, NUM_NODES, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) spri
   assign springs[1][0] = 1;        
   assign springs[0][1] = 1; //spring 2
   assign springs[1][1] = 2;  
-  assign springs[0][2] = 2;  //spring 3
-  assign springs[1][2] = 0;
+  //assign springs[0][2] = 2;  //spring 3
+  //assign springs[1][2] = 0;
+
+  assign equilibriums[0] = 0;
+  assign equilibriums[1] = 0;
+  //assign equilibriums[2] = 0;
 
 
   always begin
@@ -78,10 +95,16 @@ springs #(NUM_SPRINGS, NUM_NODES, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) spri
     end */
         
   end
+
+always_ff @(posedge clk_in) begin
+
+
+end
+
   //initial block...this is our test simulation
   initial begin
-    $dumpfile("vsg.vcd"); //file to store value change dump (vcd)
-    $dumpvars(1,springs_tb,springs_instance, springs_instance.spring_instance);
+    $dumpfile("springs.vcd"); //file to store value change dump (vcd)
+    $dumpvars(1,springs_tb,springs_instance, springs_instance.spring_instance, springs_instance.spring_instance.y_divider);
 
     $display("Starting Sim"); //print nice message at start
     clk_in = 1;
@@ -94,7 +117,7 @@ springs #(NUM_SPRINGS, NUM_NODES, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) spri
     begin_calc = 1;
     #10
     begin_calc = 0;
-    #30000
+    #3000
 
     $display("Simulation finished");
     $finish;
