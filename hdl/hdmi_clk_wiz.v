@@ -72,6 +72,7 @@ module hdmi_clk_wiz_720p
   // Clock out ports
   output        clk_pixel,
   output        clk_tmds,
+  output        clk_render,
   // Status and control signals
   input         reset,
   output        locked,
@@ -132,15 +133,20 @@ wire clk_in2_clk_wiz_0;
     .CLKFBOUT_MULT_F      (37.125),
     .CLKFBOUT_PHASE       (0.000),
     .CLKFBOUT_USE_FINE_PS ("FALSE"),
-    .CLKOUT0_DIVIDE_F     (10.000),
+    .CLKOUT0_DIVIDE_F     (20.000),
     .CLKOUT0_PHASE        (0.000),
     .CLKOUT0_DUTY_CYCLE   (0.500),
     .CLKOUT0_USE_FINE_PS  ("FALSE"),
-    .CLKOUT1_DIVIDE       (2),
+    .CLKOUT1_DIVIDE       (4),
     .CLKOUT1_PHASE        (0.000),
     .CLKOUT1_DUTY_CYCLE   (0.500),
     .CLKOUT1_USE_FINE_PS  ("FALSE"),
-    .CLKIN1_PERIOD        (10.000))
+    .CLKIN1_PERIOD        (10.000),
+    .CLKOUT2_DIVIDE       (10.000),
+    .CLKOUT2_PHASE        (0.000),
+    .CLKOUT2_DUTY_CYCLE   (0.500),
+    .CLKOUT2_USE_FINE_PS  ("FALSE")
+  )
   mmcm_adv_inst
     // Output clocks
    (
@@ -201,5 +207,9 @@ wire clk_in2_clk_wiz_0;
   BUFG clkout2_buf
    (.O   (clk_tmds),
     .I   (clk_tmds_clk_wiz_0));
+
+  BUFG clkout3_buf
+   (.O   (clk_render),
+    .I   (clkout2_unused));
 
 endmodule

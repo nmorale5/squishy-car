@@ -33,12 +33,12 @@ module top_level(
   assign led = sw; //to verify the switch values
   //shut up those rgb LEDs (active high):
   assign rgb1= 0;
-  assign rgb0 = 0;
+  // assign rgb0 = 0;
   /* have btnd control system reset */
   logic sys_rst;
   // assign sys_rst = btn[0];
  
-  logic clk_pixel, clk_5x; //clock lines
+  logic clk_pixel, clk_5x, render_clk; //clock lines
   logic locked; //locked signal (we'll leave unused but still hook it up)
  
   //clock manager...creates 74.25 Hz and 5 times 74.25 MHz for pixel and TMDS
@@ -47,6 +47,7 @@ module top_level(
       .locked(locked),
       .clk_ref(clk_100mhz),
       .clk_pixel(clk_pixel),
+      .clk_render(render_clk),
       .clk_tmds(clk_5x));
  
   logic [10:0] hcount; //hcount of system!
@@ -72,6 +73,14 @@ module top_level(
  
 	logic [23:0] color_out;
   logic [7:0] red, green, blue; //red green and blue pixel values for output
+
+  logic [25:0] some_counter;
+  always_ff @(posedge render_clk) begin
+    some_counter <= some_counter + 1;
+    if (some_counter == 0) begin
+      rgb0[0] <= ~rgb0[0];
+    end
+  end
 
   ////////////////////////////////////////////
   //
