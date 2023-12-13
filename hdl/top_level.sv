@@ -38,7 +38,7 @@ module top_level(
   logic sys_rst;
   // assign sys_rst = btn[0];
  
-  logic clk_pixel, clk_5x, render_clk; //clock lines
+  logic clk_pixel, clk_5x, clk_render; //clock lines
   logic locked; //locked signal (we'll leave unused but still hook it up)
  
   //clock manager...creates 74.25 Hz and 5 times 74.25 MHz for pixel and TMDS
@@ -47,7 +47,7 @@ module top_level(
       .locked(locked),
       .clk_ref(clk_100mhz),
       .clk_pixel(clk_pixel),
-      .clk_render(render_clk),
+      .clk_render(clk_render),
       .clk_tmds(clk_5x));
  
   logic [10:0] hcount; //hcount of system!
@@ -75,7 +75,7 @@ module top_level(
   logic [7:0] red, green, blue; //red green and blue pixel values for output
 
   logic [25:0] some_counter;
-  always_ff @(posedge render_clk) begin
+  always_ff @(posedge clk_render) begin
     some_counter <= some_counter + 1;
     if (some_counter == 0) begin
       rgb0[0] <= ~rgb0[0];
@@ -99,7 +99,7 @@ module top_level(
     .WORLD_BITS(WORLD_BITS),
     .SCALE_LEVEL(SCALE_LEVEL)
   ) get_min_screen_coords (
-    .clk_in(clk_pixel),
+    .clk_in(clk_render),
     .camera_x_in(camera_x),
     .camera_y_in(camera_y),
     .hcount_in(0), 
@@ -114,7 +114,7 @@ module top_level(
     .WORLD_BITS(WORLD_BITS),
     .SCALE_LEVEL(SCALE_LEVEL)
   ) get_max_screen_coords (
-    .clk_in(clk_pixel),
+    .clk_in(clk_render),
     .camera_x_in(camera_x),
     .camera_y_in(camera_y),
     .hcount_in(PIXEL_WIDTH), 
@@ -127,7 +127,7 @@ module top_level(
     .WORLD_BITS(WORLD_BITS),
     .MAX_NUM_VERTICES(MAX_NUM_VERTICES)
   ) env (
-    .clk_in(clk_pixel),
+    .clk_in(clk_render),
     .rst_in(sys_rst),
     .start_in(new_frame),
     .valid_out(env_stream_valid),
@@ -148,7 +148,7 @@ module top_level(
     .MAX_NUM_VERTICES(MAX_NUM_VERTICES),
     .MAX_OBSTACLES_ON_SCREEN(MAX_OBSTACLES_ON_SCREEN)
   ) on_screen (
-    .clk_in(clk_pixel),
+    .clk_in(clk_render),
     .valid_in(env_stream_valid),
     .x_in(env_stream_x),
     .y_in(env_stream_y),
@@ -193,7 +193,7 @@ module top_level(
   logic signed [WORLD_BITS-1:0] camera_x, camera_y;
   // assign camera_x = 640;
   // assign camera_y = 360;
-  always_ff @(posedge clk_pixel) begin
+  always_ff @(posedge clk_render) begin
     if (new_frame) begin
       if (btn[3]) begin
         camera_x <= camera_x - 5;
@@ -257,7 +257,7 @@ module top_level(
     .EDGE_THICKNESS(EDGE_THICKNESS)
   ) render_game (
     .rst_in(sys_rst),
-    .clk_in(clk_pixel),
+    .clk_in(clk_render),
     .hcount_in(hcount),
     .vcount_in(vcount),
     .camera_x_in(camera_x),
