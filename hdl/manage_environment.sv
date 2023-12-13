@@ -87,10 +87,11 @@ module manage_environment # (
   logic rotate_valid, rotate_out_valid;
 
   // the displacement of each point due to rotation movement
-  logic signed [WORLD_BITS-1:0] rotate_x;
-  logic signed [WORLD_BITS-1:0] rotate_y;
+  logic signed [WORLD_BITS-1:0] rotate_x, rotate_y;
+  logic signed [WORLD_BITS-1:0] cor_x, cor_y;
 
   rotate_18_bit m_rotate (
+    .aclk(clk_in),
     .s_axis_cartesian_tdata({ rotate_point_y_arg, rotate_point_x_arg }),
     .s_axis_cartesian_tvalid(rotate_valid),
     .s_axis_phase_tdata(rotate_angle_arg),
@@ -208,6 +209,8 @@ module manage_environment # (
               write_valid <= 1;
               write_data_a <= buffer_a[MAX_LATENCY-1] + translate_x;
               write_data_b <= buffer_b[MAX_LATENCY-1] + translate_y;
+              cor_x <= buffer_a[MAX_LATENCY-1];
+              cor_y <= buffer_b[MAX_LATENCY-1];
             end
             3: begin
               write_valid <= 0;
@@ -215,8 +218,9 @@ module manage_environment # (
             end
             default: begin
               write_valid <= 1;
-              write_data_a <= buffer_a[MAX_LATENCY-1] + translate_x + rotate_x;
-              write_data_b <= buffer_b[MAX_LATENCY-1] + translate_y + rotate_y;
+                                                 // scale down output by sqrt(2)
+              write_data_a <= cor_x + translate_x + (rotate_x * 185364 >>> 18);
+              write_data_b <= cor_y + translate_y + (rotate_y * 185364 >>> 18);
             end
           endcase
         end
