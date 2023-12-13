@@ -171,7 +171,7 @@ module top_level(
   localparam PIXEL_HEIGHT = 720;
   localparam SCALE_LEVEL = 0;
   localparam WORLD_BITS = 18;
-  localparam MAX_OBSTACLES_ON_SCREEN = 12;
+  localparam MAX_OBSTACLES_ON_SCREEN = 8;
   localparam MAX_NUM_VERTICES = 4;
   localparam CAR_BODY_VERTICES = 4;
   localparam CAR_WHEEL_VERTICES = 4;

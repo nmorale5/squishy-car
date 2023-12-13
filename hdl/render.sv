@@ -156,7 +156,7 @@ module render # (
       end else if (i == 2) begin
         color_idx = edge_valids[i] ? EDGE_COLOR : (fill_valids[i] ? CAR_BODY_COLOR : color_idx);
       end else if (i < num_obstacles_in + 3) begin
-        color_idx = edge_valids[i] ? EDGE_COLOR : (fill_valids[i] ? colors_in[i] : color_idx);
+        color_idx = edge_valids[i] ? EDGE_COLOR : (fill_valids[i] ? colors_in[i-3] : color_idx);
       end else begin
         color_idx = color_idx;
       end
