@@ -55,8 +55,11 @@ collision_new_values #(POSITION_SIZE, VELOCITY_SIZE, ACCELERATION_SIZE, DT) new_
     .y_int_out(y_int),
     .acceleration_x_out(coll_acc_x),
     .acceleration_y_out(coll_acc_y),
+	.collision(collision),
     .output_valid(new_values_result)
   );
+
+ /* 
 
 collision_checker #(POSITION_SIZE, DT) collision_check (
     .clk_in(clk_in),
@@ -68,7 +71,7 @@ collision_checker #(POSITION_SIZE, DT) collision_check (
     .dx(dx),
     .dy(dy),
     .collision(collision)
-  );
+  ); */
 
 localparam VERTEX_COUNT_SIZE = NUM_VERTICES;//$clog(NUM_VERTICES);
 logic [VERTEX_COUNT_SIZE-1:0] vertex_num, last_vertex_num; // the current vertex we're on (can make smaller)
@@ -97,6 +100,7 @@ assign o13 = obstacle[1][3];
 					collision_vertex <= 0;
 					last_vertex_num <= 0;
 					vertex_num <= 1;
+					begin_new_values <= 1;
 
 					for (int i = 0; i < NUM_VERTICES; i = i + 1) begin
 						obstacle[0][i] <= obstacle_in[0][i];
@@ -123,38 +127,36 @@ assign o13 = obstacle[1][3];
 				end
 			end
 			COLLISION: begin
-				
-				if (collision == 1) begin
-					state <= CALCULATE;
-					collision_vertex <= last_vertex_num;
-					begin_new_values <= 1;
-					was_collision <= 1;
+				if (new_values_result) begin
+					if (collision == 1) begin
+						state <= CALCULATE;
+						collision_vertex <= last_vertex_num;
+						was_collision <= 1;
+					end else begin
+						state <= NEXT_VERTEX;
+					end
 				end else begin
-					state <= NEXT_VERTEX;
 					begin_new_values <= 0;
 				end
 			end
 			CALCULATE: begin
-				begin_new_values <= 0;
-				if (new_values_result == 1) begin
-					state <= NEXT_VERTEX;
-					acceleration_x <= acceleration_x + coll_acc_x;
-					acceleration_y <= acceleration_y + coll_acc_y;
-					//output for if this is the last collision
-					x_new <= x_n;
-					y_new <= y_n;
-					vel_x_new <= vx_n;
-					vel_y_new <= vy_n;
-					x_int_out <= x_int;
-					y_int_out <= y_int;
-					//setup for next collision check
-					pos_x <= x_int;
-					pos_y <= y_int;
-					vel_x <= vx_n;
-					vel_y <= vy_n;
-					dx <= x_n - x_int;
-					dy <= y_n - y_int;
-				end
+				state <= NEXT_VERTEX;
+				acceleration_x <= acceleration_x + coll_acc_x;
+				acceleration_y <= acceleration_y + coll_acc_y;
+				//output for if this is the last collision
+				x_new <= x_n;
+				y_new <= y_n;
+				vel_x_new <= vx_n;
+				vel_y_new <= vy_n;
+				x_int_out <= x_int;
+				y_int_out <= y_int;
+				//setup for next collision check
+				pos_x <= x_int;
+				pos_y <= y_int;
+				vel_x <= vx_n;
+				vel_y <= vy_n;
+				dx <= x_n - x_int;
+				dy <= y_n - y_int;
 			end
 			NEXT_VERTEX: begin
 				if (collision_vertex == vertex_num) begin
@@ -192,7 +194,7 @@ assign o13 = obstacle[1][3];
 endmodule
 
 
-
+/*
 module collision_checker #(POSITION_SIZE=8,  DT = 1)(
   input  wire clk_in,
   input  wire rst_in,
@@ -234,7 +236,15 @@ module collision_checker #(POSITION_SIZE=8,  DT = 1)(
 		//want to always negate collision if going_out
 	end 
 	
-endmodule
+endmodule 
+		coll_x = ((a <= x_num  & b >= x_num) 
+			| (a >= x_num & b <= x_num));
+
+*/
+
+
+
+
 
 //exact startpoint on line
 //m * pos_x + b = pos_y

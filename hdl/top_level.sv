@@ -30,7 +30,7 @@ module top_level(
   output logic hdmi_clk_p, hdmi_clk_n //differential hdmi clock
   );
  
-  assign led = sw; //to verify the switch values
+  //assign led = sw; //to verify the switch values
   //shut up those rgb LEDs (active high):
   assign rgb1= 0;
   assign rgb0 = 0;
@@ -40,12 +40,13 @@ module top_level(
  
   logic clk_pixel, clk_5x; //clock lines
   logic locked; //locked signal (we'll leave unused but still hook it up)
- 
+  logic clk_good;
+  BUFG mbf (.I(clk_100mhz), .O(clk_good));
   //clock manager...creates 74.25 Hz and 5 times 74.25 MHz for pixel and TMDS
   hdmi_clk_wiz_720p mhdmicw (
       .reset(0),
       .locked(locked),
-      .clk_ref(clk_100mhz),
+      .clk_ref(clk_good),
       .clk_pixel(clk_pixel),
       .clk_tmds(clk_5x));
  
@@ -171,8 +172,8 @@ module top_level(
   localparam PIXEL_HEIGHT = 720;
   localparam SCALE_LEVEL = 0;
   localparam WORLD_BITS = 18;
-  localparam MAX_OBSTACLES_ON_SCREEN = 12;
-  localparam MAX_NUM_VERTICES = 4;
+  localparam MAX_OBSTACLES_ON_SCREEN = 5;
+  localparam MAX_NUM_VERTICES = 10;
   localparam CAR_BODY_VERTICES = 4;
   localparam CAR_WHEEL_VERTICES = 4;
   localparam BACKGROUND_COLOR = `LBLUE;
@@ -181,13 +182,9 @@ module top_level(
   localparam EDGE_COLOR = `BLACK;
   localparam EDGE_THICKNESS = 3;
 
-  logic signed [WORLD_BITS-1:0] camera_x, camera_y;
-  logic signed [WORLD_BITS-1:0] polygons_xs [MAX_POLYGONS_ON_SCREEN] [MAX_NUM_VERTICES];
-  logic signed [WORLD_BITS-1:0] polygons_ys [MAX_POLYGONS_ON_SCREEN] [MAX_NUM_VERTICES];
-  logic [$clog2(MAX_NUM_VERTICES+1)-1:0] polygons_num_sides [MAX_POLYGONS_ON_SCREEN];
-  logic [$clog2(MAX_POLYGONS_ON_SCREEN+1)-1:0] num_polygons;
-  logic [3:0] polygons_colors [MAX_POLYGONS_ON_SCREEN];
 
+
+  logic signed [WORLD_BITS-1:0] camera_x, camera_y;
   assign camera_x = 0;
   assign camera_y = 0;
   // assign camera_x = 640;
@@ -208,8 +205,6 @@ module top_level(
 
   logic signed [WORLD_BITS-1:0] car_body_x [CAR_BODY_VERTICES];
   logic signed [WORLD_BITS-1:0] car_body_y [CAR_BODY_VERTICES];
-  logic signed [WORLD_BITS-1:0] car_wheel_1_x [CAR_WHEEL_VERTICES];
-  logic signed [WORLD_BITS-1:0] car_wheel_1_y [CAR_WHEEL_VERTICES];
   logic signed [WORLD_BITS-1:0] car_wheel_2_x [CAR_WHEEL_VERTICES];
   logic signed [WORLD_BITS-1:0] car_wheel_2_y [CAR_WHEEL_VERTICES];
 
@@ -221,46 +216,6 @@ module top_level(
   assign car_body_y[2] = 400;
   assign car_body_x[3] = 700;
   assign car_body_y[3] = 300;
-
-  assign polygons_num_sides[0] = 4;
-  assign polygons_colors[0] = `RED;
-
-  assign polygons_xs[1][0] = 300;
-  assign polygons_xs[1][1] = 400;
-  assign polygons_xs[1][2] = 500;
-
-  assign polygons_ys[1][0] = 300;
-  assign polygons_ys[1][1] = 100;
-  assign polygons_ys[1][2] = 300;
-
-  assign polygons_num_sides[1] = 3;
-  assign polygons_colors[1] = `GREEN;
-
-  assign polygons_xs[2][0] = 700;
-  assign polygons_xs[2][1] = 900;
-  assign polygons_xs[2][2] = 900;
-  assign polygons_xs[2][3] = 800;
-  assign polygons_xs[2][4] = 700;
-
-  assign polygons_ys[2][0] = 250;
-  assign polygons_ys[2][1] = 250;
-  assign polygons_ys[2][2] = 150;
-  assign polygons_ys[2][3] = 50;
-  assign polygons_ys[2][4] = 150;
-
-  assign polygons_num_sides[2] = 5;
-  assign polygons_colors[2] = `YELLOW;
-  */
-  assign num_polygons = 1;
-  assign polygons_colors[0] = `RED;
-  assign car_wheel_1_x[0] = 475;
-  assign car_wheel_1_y[0] = 275;
-  assign car_wheel_1_x[1] = 475;
-  assign car_wheel_1_y[1] = 325;
-  assign car_wheel_1_x[2] = 525;
-  assign car_wheel_1_y[2] = 325;
-  assign car_wheel_1_x[3] = 525;
-  assign car_wheel_1_y[3] = 275;
 
   assign car_wheel_2_x[0] = 675;
   assign car_wheel_2_y[0] = 275;
@@ -308,19 +263,31 @@ module top_level(
 
   always_comb begin
     for (int i = 0; i < NUM_NODES; i = i + 1) begin
-      polygons_xs[0][i] = nodes[0][i];
-      polygons_ys[0][i] = nodes[1][i];
+      car_wheel_1_x[i] = nodes[0][i];
+      car_wheel_1_y[i] = nodes[1][i];
     end
-    polygons_num_sides[0] = NUM_NODES;
 
   end
+
+    logic signed [WORLD_BITS-1:0] car_wheel_1_x [CAR_WHEEL_VERTICES];
+  logic signed [WORLD_BITS-1:0] car_wheel_1_y [CAR_WHEEL_VERTICES];
+
+/*
+    assign car_wheel_1_x[0] = 475;
+  assign car_wheel_1_y[0] = 275;
+  assign car_wheel_1_x[1] = 475;
+  assign car_wheel_1_y[1] = 325;
+  assign car_wheel_1_x[2] = 525;
+  assign car_wheel_1_y[2] = 325;
+  assign car_wheel_1_x[3] = 525;
+  assign car_wheel_1_y[3] = 275; */
 
   //Physics
   // Constants for testing
   localparam NUM_SPRINGS = 10;
-  localparam NUM_NODES = 10;
+  localparam NUM_NODES = CAR_WHEEL_VERTICES;
   localparam NUM_VERTICES = MAX_NUM_VERTICES;
-  localparam NUM_OBSTACLES = MAX_POLYGONS_ON_SCREEN - 1; //one for the wheel, but will be three
+  localparam NUM_OBSTACLES = MAX_OBSTACLES_ON_SCREEN;
   localparam POSITION_SIZE = WORLD_BITS;
   localparam VELOCITY_SIZE = 8;
   localparam FORCE_SIZE = 8;
@@ -354,10 +321,36 @@ module top_level(
   logic [$clog2(NUM_NODES):0] new_velocity_count = 0;
 
   assign begin_update = new_frame;
+  assign led[15] = update_late;
 
-  always_ff @(posedge clk_100mhz) begin
+  logic update_late, update_done_yet;
+
+  logic [POSITION_SIZE-1:0] node1 [1:0];
+  logic [POSITION_SIZE-1:0] node2 [1:0];
+  
+  always_comb begin
+    for (int i = 0; i < NUM_SPRINGS; i = i + 1) begin
+      node1[0] = ideal[springs[0][i]][0];
+      node2[0] = ideal[springs[1][i]][0];
+      node1[1] = ideal[springs[0][i]][1];
+      node2[1] = ideal[springs[1][i]][1];
+      equilibriums[i] = 40;//$sqrt((node2[1]-node1[1]) * (node2[1]-node1[1]) + (node2[0]-node1[0]) * (node2[0]-node1[0]));
+    end
+
+  end 
+
+  
+  //assign equilibriums[0] = 4;
+  //assign equilibriums[1] = 2
+
+
+
+  always_ff @(posedge clk_good) begin
+
     if (sys_rst) begin
       //game_initialized <= 0;
+      update_late <= 0;
+      update_done_yet <= 0;
       axle[0] <= 5;
       axle[1] <= 2;
       axle_velocity[0] <= 0;
@@ -410,68 +403,48 @@ module top_level(
       springs[0][5] = 1;
       springs[1][5] = 3;
 
-    end
-
-  end
-
-
-  logic [POSITION_SIZE-1:0] node1 [1:0];
-  logic [POSITION_SIZE-1:0] node2 [1:0];
-  
-  always_comb begin
-    for (int i = 0; i < NUM_SPRINGS; i = i + 1) begin
-      node1[0] = ideal[springs[0][i]][0];
-      node2[0] = ideal[springs[1][i]][0];
-      node1[1] = ideal[springs[0][i]][1];
-      node2[1] = ideal[springs[1][i]][1];
-      equilibriums[i] = 40;//$sqrt((node2[1]-node1[1]) * (node2[1]-node1[1]) + (node2[0]-node1[0]) * (node2[0]-node1[0]));
-    end
-
-  end 
-
-  
-  //assign equilibriums[0] = 4;
-  //assign equilibriums[1] = 2
-
-  always_ff @(posedge clk_100mhz) begin
-
-
-    if (new_node_valid == 1) begin
-      new_node_count <= new_node_count + 1;
-      new_nodes[0][new_node_count] <= new_node_x;
-      new_nodes[1][new_node_count] <= new_node_y;
-    end
-
-    if (new_velocity_valid == 1) begin
-      new_velocity_count <= new_velocity_count + 1;
-      new_velocities[0][new_velocity_count] <= new_velocity_x;
-      new_velocities[1][new_velocity_count] <= new_velocity_y;
-    end
-
-    if (result_out == 1) begin
-      new_node_count <= 0;
-      new_velocity_count <= 0;
-      nodes[0][0] <= new_nodes[0][0];
-      nodes[1][0] <= new_nodes[1][0];
-      nodes[0][1] <= new_nodes[0][1];
-      nodes[1][1] <= new_nodes[1][1];
-      nodes[0][2] <= new_nodes[0][2];
-      nodes[1][2] <= new_nodes[1][3];
-      nodes[0][3] <= new_nodes[0][3];
-      nodes[1][3] <= new_nodes[1][3];
-
-      velocities[0][0] <= new_velocities[0][0];
-      velocities[1][0] <= new_velocities[1][0];
-      velocities[0][1] <= new_velocities[0][1];
-      velocities[1][1] <= new_velocities[1][1];
-      velocities[0][2] <= new_velocities[0][2];
-      velocities[1][2] <= new_velocities[1][2];
-      velocities[0][3] <= new_velocities[0][3];
-      velocities[1][3] <= new_velocities[1][3];
-      //begin_update <= 1;
     end else begin
-      //begin_update <= 0;
+      if (update_done_yet == 0 & begin_update) begin
+        update_late <= 1;
+      end
+
+      if (new_node_valid == 1) begin
+        new_node_count <= new_node_count + 1;
+        new_nodes[0][new_node_count] <= new_node_x;
+        new_nodes[1][new_node_count] <= new_node_y;
+      end
+
+      if (new_velocity_valid == 1) begin
+        new_velocity_count <= new_velocity_count + 1;
+        new_velocities[0][new_velocity_count] <= new_velocity_x;
+        new_velocities[1][new_velocity_count] <= new_velocity_y;
+      end
+
+      if (result_out == 1) begin
+        new_node_count <= 0;
+        new_velocity_count <= 0;
+        update_done_yet <= 1;
+        nodes[0][0] <= new_nodes[0][0];
+        nodes[1][0] <= new_nodes[1][0];
+        nodes[0][1] <= new_nodes[0][1];
+        nodes[1][1] <= new_nodes[1][1];
+        nodes[0][2] <= new_nodes[0][2];
+        nodes[1][2] <= new_nodes[1][3];
+        nodes[0][3] <= new_nodes[0][3];
+        nodes[1][3] <= new_nodes[1][3];
+
+        velocities[0][0] <= new_velocities[0][0];
+        velocities[1][0] <= new_velocities[1][0];
+        velocities[0][1] <= new_velocities[0][1];
+        velocities[1][1] <= new_velocities[1][1];
+        velocities[0][2] <= new_velocities[0][2];
+        velocities[1][2] <= new_velocities[1][2];
+        velocities[0][3] <= new_velocities[0][3];
+        velocities[1][3] <= new_velocities[1][3];
+      end
     end
+
+
   end
 
 
@@ -489,7 +462,7 @@ module top_level(
     .GRAVITY(GRAVITY),
     .DT(DT)
   ) wheel_updater (
-    .clk_in(clk_100mhz),
+    .clk_in(clk_good),
     .rst_in(sys_rst),
     .begin_in(begin_update),
     .constants(constants),

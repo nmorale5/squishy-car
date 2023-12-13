@@ -65,10 +65,11 @@ module spring #(CONSTANT_SIZE, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE)(
 //need to subtract the equilibrium length from the vector
 //only way to do this is with a square root it seems.
 //for testing 
+/*
 logic [3 * POSITION_SIZE:0] t1, t2;
 assign t1 = (v2[0] - v1[0]) * (v2[0] - v1[0]);
 assign t2 = (v2[1] - v1[1]);
-
+*/
 //done testing
 
 

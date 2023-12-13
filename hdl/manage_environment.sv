@@ -91,6 +91,7 @@ module manage_environment # (
   logic signed [WORLD_BITS-1:0] rotate_y;
 
   rotate_18_bit m_rotate (
+    .aclk(clk_in),
     .s_axis_cartesian_tdata({ rotate_point_y_arg, rotate_point_x_arg }),
     .s_axis_cartesian_tvalid(rotate_valid),
     .s_axis_phase_tdata(rotate_angle_arg),

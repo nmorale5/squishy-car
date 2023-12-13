@@ -18,10 +18,11 @@ module collision_new_values #(POSITION_SIZE=8, VELOCITY_SIZE=8, ACCELERATION_SIZ
   output logic signed [POSITION_SIZE-1:0] y_int_out,
   output logic signed [ACCELERATION_SIZE-1:0] acceleration_x_out,
   output logic signed [ACCELERATION_SIZE-1:0] acceleration_y_out,
+  output logic collision,
   output logic output_valid
   
 );
-	typedef enum {IDLE = 0, INTERSECTION = 1, NEW_POS=2} coll_state;
+	typedef enum {IDLE = 0, INTERSECTION = 1, NEW_POS=2, MULTIPLY=3} coll_state;
 	coll_state state = IDLE;
 	//logic signed [POSITION_SIZE-1:0] dx,dy;
 	logic signed [POSITION_SIZE-1:0] v1 [1:0];
@@ -61,23 +62,72 @@ module collision_new_values #(POSITION_SIZE=8, VELOCITY_SIZE=8, ACCELERATION_SIZ
 	logic [5:0] divider_busy;
 
 
-	assign r_parr = ((pos_x + dx - x_int) * run + (pos_y + dy - y_int) * rise);
-	assign r_parr_x = r_parr * run;
-	assign r_parr_y = r_parr * rise;
-	assign r_perp = (pos_x + dx - x_int) * rise - (pos_y + dy - y_int) * run;
-	assign r_perp_x = r_perp * rise;
-	assign r_perp_y = ~(r_perp * run) + 2'sd1;
+	//assign r_parr = ((pos_x + dx - x_int) * run + (pos_y + dy - y_int) * rise);
+	//assign r_parr_x = r_parr * run;
+	//assign r_parr_y = r_parr * rise;
+	//assign r_perp = (pos_x + dx - x_int) * rise - (pos_y + dy - y_int) * run;
+	//assign r_perp_x = r_perp * rise;
+	//assign r_perp_y = ~(r_perp * run) + 2'sd1;
+
+	logic [2 * POSITION_SIZE+2-1:0] product_1, product_2;
+	logic [POSITION_SIZE+1-1:0] mult11, mult12, mult21, mult22;
+	logic [3 * POSITION_SIZE + 3-1:0] product_3, product_4;
+	logic [2 * POSITION_SIZE+2-1:0] mult31, mult41;
+	logic [POSITION_SIZE+1-1:0] mult32, mult42;
+
+    //mult1, mult2: POSITION_SIZE + 1, POSITION_SIZE+1 
+	//product1,product2: 2 * POSITION_SIZE + 2 
+	assign product_1 = mult11 * mult12;
+	assign product_2 = mult21 * mult22;
+
+	//mult: 2 * POSITION_SIZE + 2, POSITION_SIZE+1
+	//product: 3 * POSITIONS_SIZE + 3
+	assign product_3 = mult31 * mult32;
+	assign product_4 = mult41 * mult42;
+
 
 	assign rise = (v2[1]-v1[1]);
 	assign run = (v2[0]-v1[0]);
-	assign int_divisor = dy*run-dx*rise;
-	assign t1 = (dy*pos_x-dx*pos_y);
-	assign t2 = (v2[0]*v1[1] - v1[0]*v2[1]);
-	assign x_int_dividend = run*t1 + dx*t2;
-	assign y_int_dividend = dy * t2 - rise*(dx*pos_y-dy*pos_x);
+	//assign int_divisor = dy*run-dx*rise;
+	//assign t1 = (dy*pos_x-dx*pos_y);
+	//assign t2 = (v2[0]*v1[1] - v1[0]*v2[1]);
+	//assign x_int_dividend = run*t1 + dx*t2;
+	//assign y_int_dividend = rise*t1 = dy * t2;
+
 	logic [3 * POSITION_SIZE + 4-1:0] x_dividend, x_divisor, y_dividend,y_divisor;
 	logic [POSITION_SIZE-1:0] x_quotient, y_quotient;
 	logic x_valid, y_valid, x_valid_in, y_valid_in, vx_new_valid_in, vy_new_valid_in, vx_new_valid, vy_new_valid;
+
+		
+	//assign v_mag = run*run + rise * rise;
+
+	//assign v_parr = vel_x * run + vel_y*rise;
+	//assign v_parr_x = v_parr * run;
+	//assign v_parr_y = v_parr * rise;
+	//assign v_perp = vel_x * rise - vel_y*run;
+	//assign v_perp_x = v_perp * rise;
+	//assign v_perp_y = ~(v_perp * run) + 2'sd1;
+
+
+	always_comb begin
+
+		
+		
+        v1[0] = v1_in[0];
+		v1[1] = v1_in[1];
+		v2[0] = v2_in[0];
+		v2[1] = v2_in[1];
+
+		x_new_dividend = (r_parr_x - r_perp_x);
+		y_new_dividend = (r_parr_y - r_perp_y);
+
+		vx_new_dividend = (v_parr_x - v_perp_x);
+		vy_new_dividend = (v_parr_y - v_perp_y);
+
+		//optimization/ |v| / |r| * r_new = v_new
+		acceleration_x = 0;//(~($signed(FRICTION) * v_parr_x)+2'sd1) / (v_mag * 5'sd16);
+		acceleration_y = 0;//(~($signed(FRICTION) * v_parr_y)+2'sd1) / (v_mag * 5'sd16);
+	end 
 
     divider #(.WIDTH(3 * POSITION_SIZE + 4), .OUT_SIZE(POSITION_SIZE)) x_divider (
                 .clk_in(clk_in),
@@ -132,40 +182,17 @@ module collision_new_values #(POSITION_SIZE=8, VELOCITY_SIZE=8, ACCELERATION_SIZ
 	);	
 
 	//dividers: x_new, y_new, x_int, y_int, accel_x, accel_y
-	
-	assign v_mag = run*run + rise * rise;
 
-	assign v_parr = vel_x * run + vel_y*rise;
-	assign v_parr_x = v_parr * run;
-	assign v_parr_y = v_parr * rise;
-	assign v_perp = vel_x * rise - vel_y*run;
-	assign v_perp_x = v_perp * rise;
-	assign v_perp_y = ~(v_perp * run) + 2'sd1;
 
     //for testing
-    logic signed [POSITION_SIZE-1:0] test1, test2;
+   /* logic signed [POSITION_SIZE-1:0] test1, test2;
     assign test1 = 2 * rise;
-    assign test2 = 2 * run;
+    assign test2 = 2 * run; */
 
-	always_comb begin
-		
-        v1[0] = v1_in[0];
-		v1[1] = v1_in[1];
-		v2[0] = v2_in[0];
-		v2[1] = v2_in[1];
 
-		x_new_dividend = (r_parr_x - r_perp_x);
-		y_new_dividend = (r_parr_y - r_perp_y);
-
-		vx_new_dividend = (v_parr_x - v_perp_x);
-		vy_new_dividend = (v_parr_y - v_perp_y);
-
-		//optimization/ |v| / |r| * r_new = v_new
-		acceleration_x = 0;//(~($signed(FRICTION) * v_parr_x)+2'sd1) / (v_mag * 5'sd16);
-		acceleration_y = 0;//(~($signed(FRICTION) * v_parr_y)+2'sd1) / (v_mag * 5'sd16);
-	end 
 
 	logic [5:0] valids;
+	logic [8:0] mult_num;
 
 	//do x_int and vel, then new pos
 	always_ff @(posedge clk_in) begin
@@ -185,29 +212,206 @@ module collision_new_values #(POSITION_SIZE=8, VELOCITY_SIZE=8, ACCELERATION_SIZ
 			IDLE: begin
 				output_valid <= 0;
 				if (input_valid) begin
-					state <= INTERSECTION;
+					state <= MULTIPLY;
 					valids[0] <= 0;
 					valids[1] <= 0;
 					valids[2] <= 0;
 					valids[3] <= 0;
 					valids[4] <= 0;
 					valids[5] <= 0;
-					x_valid_in <= 1;
-					y_valid_in <= 1;
-					x_dividend <= x_int_dividend;
-					y_dividend <= y_int_dividend;
-					x_divisor <= int_divisor;
-					y_divisor <= int_divisor;
-					vx_new_valid_in <= 1;
-					vy_new_valid_in <= 1;
-				end
+					mult_num <= 0;
+					//t1
+					mult11 <= dy;
+					mult12 <= pos_x;
+					mult11 <= dx;
+					mult12 <= pos_y;
 
+				end
 			end
-			INTERSECTION: begin
-				vx_new_valid_in <= 0;
-				vy_new_valid_in <= 0;
-				x_valid_in <= 0;
-				y_valid_in <= 0;
+			MULTIPLY: begin
+				mult_num <= mult_num + 1;
+				case (mult_num)
+					0: begin
+						t1 <= product_1 - product_2;
+
+						//t2
+						mult11 <= v2[0];
+						mult12 <= v1[1];
+						mult11 <= v1[0];
+						mult12 <= v2[1];
+					end
+					1: begin
+						t2 <= product_1 - product_2;
+						//int_divisor
+						mult11 <= dy;
+						mult12 <= run;
+						mult11 <= dx;
+						mult12 <= rise;
+
+						//x_int_dividend
+						mult31 <= t1;
+						mult32 <= run;
+						mult41 <= product_1 - product_2;
+						mult42 <= dx;
+					end
+					2: begin
+						//check if it is going inside the obstacle
+						if (product_1 > product_2) begin
+							collision <= 0;
+							state <= IDLE;
+							output_valid <= 1;
+						end else begin
+							//int_divisor <= product1 - product2; also don't need int_divisor
+							//x_int_dividend <= product_3 + product_4; don't need x_int_dividend
+							x_dividend <= product_3 + product_4; //x_int_dividend
+							x_divisor <= product_1 - product_2; //int_divisor
+							y_divisor <= product_1 - product_2; //int_divisor
+
+							//v_perp
+							mult11 <= vel_x;
+							mult12 <= rise;
+							mult11 <= vel_y;
+							mult12 <= run;
+
+							//denom * pos_x, denom * dx
+							mult31 <= product_1 - product_2; //denom
+							mult32 <= pos_x;
+							mult41 <= product_1 - product_2; //denom
+							mult42 <= dx;
+						end
+
+
+					end
+					3: begin
+						//check if x intersection is within x bounds
+						if (((product_1 <= x_dividend) & ((product_1 + product_2) >= x_dividend))
+						|((product_1 >= x_dividend) & ((product_1 + product_2) <= x_dividend))) begin
+							v_perp <= product_1 - product_2;
+
+							//v_parr
+							mult11 <= vel_x;
+							mult12 <= run;
+							mult11 <= vel_y;
+							mult12 <= rise;
+							
+							//y_int_dividend
+							mult31 <= t1;
+							mult32 <= rise;
+							mult41 <= t2;
+							mult42 <= dy;
+
+						end else begin
+							collision <= 0;
+							state <= IDLE;
+							output_valid <= 1;
+						end
+
+					end
+					4: begin
+		
+						v_parr <= product_1 + product_2;
+						//y_int_dividend <= product_3 + product_4; don't need y_int_dividend
+						//y_int ready
+						y_dividend <= product_3 + product_4; //y_int_dividend
+
+						//v_mag
+						mult11 <= run;
+						mult12 <= run;
+						mult11 <= rise;
+						mult12 <= rise;
+
+						//denom * pos_y, denom * dy
+						mult31 <= int_divisor; //denom
+						mult32 <= pos_y;
+						mult41 <= int_divisor; //denom
+						mult42 <= dy;
+
+
+
+
+					end
+					5: begin
+						//cheching if intersection is within y bounds
+						if (((product_1 <= y_dividend) & ((product_1 + product_2) >= y_dividend))
+						|((product_1 >= y_dividend) & ((product_1 + product_2) <= y_dividend))) begin
+							//all checks passed and there is a collision, continue
+							collision <= 1;
+
+							v_mag <= product_1 + product_2;
+							//start the dividers
+							x_valid_in <= 1;
+							y_valid_in <= 1;
+
+							//v_parr_x, v_parr_y
+							mult31 <= v_parr;
+							mult32 <= run;
+							mult41 <= v_parr;
+							mult42 <= rise;							
+
+						end else begin
+							collision <= 0;
+							state <= IDLE;
+							output_valid <= 1;
+						end
+
+
+					end
+					6: begin
+
+						v_parr_x <= product_3;
+						v_parr_y <= product_4;
+
+						x_valid_in <= 0;
+						y_valid_in <= 0;
+
+						//v_perp_x, v_perp_y
+						mult31 <= v_perp;
+						mult32 <= rise;
+						mult41 <= v_perp;
+						mult42 <= run;
+					end
+					7: begin
+						v_perp_x <= product_3;
+						v_perp_y <= ~product_4 + 2'sd1;
+
+						state <= INTERSECTION;
+						vx_new_valid_in <= 1;
+						vy_new_valid_in <= 1;
+					end
+					8: begin
+						//start for r_parr???
+						r_parr <= product_1 + product_2;
+						r_parr_x <= product_3;
+						r_parr_y <= product_4;
+
+						//r_perp
+						mult11 <= (pos_x + dx - x_int);
+						mult12 <= rise;
+						mult11 <= (pos_y + dy - y_int);
+						mult12 <= run;
+
+						//r_perp_x, r_perp_y
+						mult31 <= r_perp;
+						mult32 <= rise;
+						mult41 <= r_perp;
+						mult42 <= run;
+					end
+					9: begin
+						r_perp <= product_1 - product_2;
+						r_perp_x <= product_3;
+						r_perp_y <= ~product_4 + 2'sd1;
+
+						state <= NEW_POS;
+						x_valid_in <= 1;
+						y_valid_in <= 1;
+						x_dividend <= x_new_dividend;
+						y_dividend <= y_new_dividend;
+						x_divisor <= v_mag;
+						y_divisor <= v_mag;
+					end
+
+				endcase
+
 				if (x_valid == 1) begin
 					x_int <= x_quotient;
 					valids[4] <= 1;
@@ -216,14 +420,36 @@ module collision_new_values #(POSITION_SIZE=8, VELOCITY_SIZE=8, ACCELERATION_SIZ
 					y_int <= y_quotient;
 					valids[5] <= 1;
 				end
-				if (valids[5:4] == 2'b11) begin	 
-					state <= NEW_POS;
-					x_valid_in <= 1;
-					y_valid_in <= 1;
-					x_dividend <= x_new_dividend;
-					y_dividend <= y_new_dividend;
-					x_divisor <= v_mag;
-					y_divisor <= v_mag;
+
+			end
+
+			INTERSECTION: begin
+				vx_new_valid_in <= 0;
+				vy_new_valid_in <= 0;
+
+				if (x_valid == 1) begin
+					x_int <= x_quotient;
+					valids[4] <= 1;
+				end
+				if (y_valid == 1) begin
+					y_int <= y_quotient;
+					valids[5] <= 1;
+				end
+
+				if (valids[5:4] == 2'b11) begin	
+					state <= MULTIPLY;
+
+					//r_parr
+					mult11 <= (pos_x + dx - x_int);
+					mult12 <= run;
+					mult11 <= (pos_y + dy - y_int);
+					mult12 <= rise;
+
+					//r_parr_x, r_parr_y
+					mult31 <= r_parr;
+					mult32 <= run;
+					mult41 <= r_parr;
+					mult42 <= rise;	
 				end
 			end
 			NEW_POS: begin
