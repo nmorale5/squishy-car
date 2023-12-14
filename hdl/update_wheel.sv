@@ -24,6 +24,7 @@ module update_wheel #(NUM_SPRINGS, NUM_NODES, NUM_VERTICES, NUM_OBSTACLES, CONST
   output logic velocity_out_valid,
   output logic signed [FORCE_SIZE-1:0] axle_force_x,
   output logic signed [FORCE_SIZE-1:0] axle_force_y,
+  output logic axle_out_valid,
   output logic [5:0] states,
   //output logic signed [POSITION_SIZE-1:0] com_out [1:0], 
   output logic result_out
@@ -59,17 +60,6 @@ logic [FORCE_SIZE-1:0] tor_force_x, tor_force_y;
 assign tor_force_x = torque_forces[0][0];
 assign tor_force_y = torque_forces[1][0];
 */
-
-/*
-generate
-  genvar idx;
-  for(idx = 0; idx < NUM_NODES; idx = idx+1) begin
-    wire [NUM_NODES-1:0] tmpx;
-    wire [NUM_NODES-1:0] tmpy;
-    assign tmpx_idx = nodes_out[0][idx];
-    assign tmpy_idx = nodes_out[1][idx];
-  end
-endgenerate */
 
 //done for testing
 
@@ -138,9 +128,11 @@ endgenerate */
     .result_out(collision_force_valid)
   );
 
-  logic [CONSTANT_SIZE-1:0] springs_k, springs_b; 
+  logic [CONSTANT_SIZE-1:0] springs_k, springs_b, ideal_k, ideal_b; 
   assign springs_k = constants[0];
   assign springs_b = constants[1];
+  assign ideal_k = constants[2];
+  assign ideal_b = constants[3];
 
   // Instantiate the springs module
   springs #(
@@ -177,6 +169,8 @@ endgenerate */
     .clk_in(clk_in),
     .rst_in(rst_in),
     .input_valid(begin_ideal),
+    .k(ideal_k),
+    .b(ideal_b),
     .axle(axle),
     .axle_velocity(axle_velocity)
 ,    .nodes(nodes),
@@ -190,6 +184,7 @@ endgenerate */
     .output_valid(ideal_done)
   );
 
+assign axle_out_valid = ideal_force_valid;
 
 
 //do torque here
@@ -350,8 +345,8 @@ always_ff @(posedge clk_in) begin
             //new_vel_x <= new_vel_x + acceleration_x * DT;
             ///new_vel_y <= new_vel_y + acceleration_y * DT;
             for (integer i = 0; i< NUM_NODES; i = i + 1) begin
-              velocities[0][i] <= velocities[0][i] + total_forces[0][i];// * DT;//add divide by mass later
-              velocities[1][i] <= velocities[1][i] + total_forces[1][i];// * DT; 
+              velocities[0][i] <= velocities[0][i] + (total_forces[0][i] >>> DT);// * DT;//add divide by mass later
+              velocities[1][i] <= velocities[1][i] + (total_forces[1][i] >>> DT);// * DT; 
             end
             velocity_out_num <= 0;
 

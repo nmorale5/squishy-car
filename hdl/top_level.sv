@@ -40,13 +40,12 @@ module top_level(
  
   logic clk_pixel, clk_5x; //clock lines
   logic locked; //locked signal (we'll leave unused but still hook it up)
-  logic clk_good;
-  BUFG mbf (.I(clk_100mhz), .O(clk_good));
+
   //clock manager...creates 74.25 Hz and 5 times 74.25 MHz for pixel and TMDS
   hdmi_clk_wiz_720p mhdmicw (
       .reset(0),
       .locked(locked),
-      .clk_ref(clk_good),
+      .clk_ref(clk_100mhz),
       .clk_pixel(clk_pixel),
       .clk_tmds(clk_5x));
  
@@ -208,26 +207,10 @@ module top_level(
   logic signed [WORLD_BITS-1:0] car_body_y [CAR_BODY_VERTICES];
   logic signed [WORLD_BITS-1:0] car_wheel_2_x [CAR_WHEEL_VERTICES];
   logic signed [WORLD_BITS-1:0] car_wheel_2_y [CAR_WHEEL_VERTICES];
+    logic signed [WORLD_BITS-1:0] car_wheel_1_x [CAR_WHEEL_VERTICES];
+  logic signed [WORLD_BITS-1:0] car_wheel_1_y [CAR_WHEEL_VERTICES];
 
-  assign car_body_x[0] = 50;
-  assign car_body_y[0] = 30;
-  assign car_body_x[1] = 50;
-  assign car_body_y[1] = 40;
-  assign car_body_x[2] = 70;
-  assign car_body_y[2] = 40;
-  assign car_body_x[3] = 70;
-  assign car_body_y[3] = 30;
 
-/*
-  assign car_wheel_2_x[0] = 65;
-  assign car_wheel_2_y[0] = 25;
-  assign car_wheel_2_x[1] = 65;
-  assign car_wheel_2_y[1] = 35;
-  assign car_wheel_2_x[2] = 75;
-  assign car_wheel_2_y[2] = 35;
-  assign car_wheel_2_x[3] = 75;
-  assign car_wheel_2_y[3] = 25;
-  */
 
   render # (
     .PIXEL_WIDTH(PIXEL_WIDTH),
@@ -264,95 +247,94 @@ module top_level(
     .color_out(color_out)
   );
 
-  logic forward, backward;
-  always_comb begin
-    for (int i = 0; i < NUM_NODES; i = i + 1) begin
-      car_wheel_1_x[i] = nodes[0][i];
-      car_wheel_1_y[i] = nodes[1][i];
-      car_wheel_2_x[i] = new_nodes[0][i];
-      car_wheel_2_x[i] = new_nodes[0][i];
-    end
 
-    forward = sw[1];
-    backward = sw[2];
-    drive = forward - backward;
 
-  end
 
-  logic signed [WORLD_BITS-1:0] car_wheel_1_x [CAR_WHEEL_VERTICES];
-  logic signed [WORLD_BITS-1:0] car_wheel_1_y [CAR_WHEEL_VERTICES];
 
-/*
-    assign car_wheel_1_x[0] = 475;
-  assign car_wheel_1_y[0] = 275;
-  assign car_wheel_1_x[1] = 475;
-  assign car_wheel_1_y[1] = 325;
-  assign car_wheel_1_x[2] = 525;
-  assign car_wheel_1_y[2] = 325;
-  assign car_wheel_1_x[3] = 525;
-  assign car_wheel_1_y[3] = 275; */
 
   //Physics
-  localparam NUM_SPRINGS = 7;
-  localparam NUM_NODES = CAR_WHEEL_VERTICES;
+  localparam NUM_WHEEL_SPRINGS = 6;
+  localparam NUM_BODY_SPRINGS = 6;
+  localparam NUM_WHEEL_NODES = CAR_WHEEL_VERTICES
+  localparam NUM_BODY_NODES = BODY_WHEEL_VERTICES
   localparam NUM_VERTICES = MAX_NUM_VERTICES;
   localparam NUM_OBSTACLES = MAX_OBSTACLES_ON_SCREEN;
   localparam POSITION_SIZE = WORLD_BITS;
-  localparam VELOCITY_SIZE = 8;
-  localparam FORCE_SIZE = 8;
+  localparam VELOCITY_SIZE = 15;
+  localparam FORCE_SIZE = 15;
   localparam TORQUE = 4;
   localparam GRAVITY = -1;
-  localparam DT = 1;
-  localparam CONSTANT_SIZE = 4;
+  localparam DT = 3;
+  localparam CONSTANT_SIZE = 3;
 
-  // Signals for testing
-  logic begin_update, result_out;
+  assign begin_update = got_all_obstacles;
+
+
   logic signed [2:0] drive;
-  logic [$clog2(NUM_NODES):0] springs [1:0][NUM_SPRINGS];
-  logic signed [POSITION_SIZE-1:0] ideal [1:0][NUM_NODES];
+  logic signed [POSITION_SIZE-1:0] wheel_ideal [1:0][NUM_WHEEL_NODES];
+  logic signed [POSITION_SIZE-1:0] body_ideal [1:0][NUM_BODY_NODES];
+  logic [$clog2(NUM_NODES):0] wheel_springs [1:0][NUM_WHEEL_SPRINGS];
+  logic [$clog2(NUM_NODES):0] body_springs [1:0][NUM_BODY_SPRINGS];
+  logic [POSITION_SIZE-1:0] wheel_equilibriums [NUM_WHEEL_SPRINGS];
+  logic [POSITION_SIZE-1:0] body_equilibriums [NUM_WHEEL_SPRINGS];
   logic signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES];
-  logic [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES];
-  logic signed [POSITION_SIZE-1:0] axle [1:0];
-  logic [$clog2(NUM_OBSTACLES)-1:0] num_obstacles;
-  logic signed [POSITION_SIZE-1:0] nodes [1:0][NUM_NODES];
-  logic signed [POSITION_SIZE-1:0] new_nodes [1:0][NUM_NODES];
-  logic signed [VELOCITY_SIZE-1:0] velocities [1:0][NUM_NODES];
-  logic signed [VELOCITY_SIZE-1:0] new_velocities [1:0][NUM_NODES];
-  logic signed [FORCE_SIZE-1:0] axle_force [1:0];
-  logic signed [VELOCITY_SIZE-1:0] axle_velocity [1:0];
-  logic [CONSTANT_SIZE-1:0] constants [4];
-  logic [POSITION_SIZE-1:0] equilibriums [NUM_SPRINGS];
-  logic signed [POSITION_SIZE-1:0] new_node_x, new_node_y;
-  logic signed [VELOCITY_SIZE-1:0] new_velocity_x, new_velocity_y;
-  logic signed [FORCE_SIZE-1:0] axle_force_x, axle_force_y;
-  logic new_node_valid, new_velocity_valid;
-  logic [$clog2(NUM_NODES):0] new_node_count = 0;
-  logic [$clog2(NUM_NODES):0] new_velocity_count = 0;
-
-  assign begin_update = new_frame;
+  logic [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES]; //might be replaced
+  logic [$clog2(NUM_OBSTACLES):0] num_obstacles; //might get replaced
+  logic signed [POSITION_SIZE-1:0] left_wheel_x;
+  logic signed [POSITION_SIZE-1:0] left_wheel_y;
+  logic left_wheel_valid;
+  logic signed [POSITION_SIZE-1:0] right_wheel_x;
+  logic signed [POSITION_SIZE-1:0] right_wheel_y;
+  logic right_wheel_valid;
+  logic signed [POSITION_SIZE-1:0] body_x;
+  logic signed [POSITION_SIZE-1:0] body_y;
+  logic body_valid;
+  logic [POSITION_SIZE-1:0] com_x, com_y;
+  logic com_valid;
+  logic all_done;
 
 
-  logic [POSITION_SIZE-1:0] node1 [1:0];
-  logic [POSITION_SIZE-1:0] node2 [1:0];
-  
-  always_comb begin
-    for (int i = 0; i < NUM_SPRINGS; i = i + 1) begin
-      node1[0] = ideal[springs[0][i]][0];
-      node2[0] = ideal[springs[1][i]][0];
-      node1[1] = ideal[springs[0][i]][1];
-      node2[1] = ideal[springs[1][i]][1];
-      equilibriums[i] = 40;//$sqrt((node2[1]-node1[1]) * (node2[1]-node1[1]) + (node2[0]-node1[0]) * (node2[0]-node1[0]));
-    end
 
-  end 
+    manage_car #(
+    .NUM_WHEEL_NODES(NUM_WHEEL_NODES),
+    .NUM_BODY_NODES(NUM_BODY_NODES),
+    .NUM_VERTICES(NUM_VERTICES),
+    .NUM_OBSTACLES(NUM_OBSTACLES),
+    .POSITION_SIZE(POSITION_SIZE),
+    .VELOCITY_SIZE(VELOCITY_SIZE),
+    .FORCE_SIZE(FORCE_SIZE),
+    .CONSTANT_SIZE(CONSTANT_SIZE)
+  ) car_instance (
+    .clk_in(clk_pixel),
+    .rst_in(sys_rst),
+    .begin_update(begin_update),
+    .wheel_constants(wheel_constants),
+    .body_constants(body_constants),
+    .drive(drive),
+    .wheel_ideal(wheel_ideal),
+    .body_ideal(body_ideal),
+    .wheel_springs(wheel_springs),
+    .body_springs(body_springs),
+    .obstacles(obstacles),
+    .all_num_vertices(all_num_vertices), //num_sides_each_poly
+    .num_obstacles(num_obstacles), //num_polys_on_screen
+    .debug_switches(debug_switches),
+    .left_wheel_x(left_wheel_x),
+    .left_wheel_y(left_wheel_y),
+    .left_wheel_valid(left_wheel_valid),
+    .right_wheel_x(right_wheel_x),
+    .right_wheel_y(right_wheel_y),
+    .right_wheel_valid(right_wheel_valid),
+    .body_x(body_x),
+    .body_y(body_y),
+    .body_valid(body_valid),
+    .states(states),
+    .com_x_out(com_x),
+    .com_y_out(com_y),
+    .com_out_valid(com_valid),
+    .all_done(all_done)
+  );
 
-  
-  //assign equilibriums[0] = 4;
-  //assign equilibriums[1] = 2
-
-  assign led[4:0] = update_late;
-  assign led[9:5] = nodes_done_count;
-  assign led[15:10] = wheel_states;
 
 /*states will be attached to lights for debugging
 bit  value
@@ -361,187 +343,129 @@ bit  value
   13      springs_force
   14      ideal_force
   15      torque_force
+
+//switches for debugging
+sw   action
+1    forward
+2 backward
+14   nodes <= new_nodes
+15   begin simulation
+
 */
 
-  logic[7:0] update_late;
-  logic[7:0] nodes_done_count;
-  logic update_done_yet;
-
-  logic [POSITION_SIZE-1:0] com_x, com_y;
-  logic com_valid;
-
-  center_of_mass #(POSITION_SIZE, NUM_NODES) com (
-    .clk_in(clk_pixel),
-    .rst_in(sys_rst),
-    .x_in(new_node_x),
-    .y_in(new_node_y),
-    .valid_in(new_node_valid),
-    .tabulate_in(new_node_done),
-    .x_out(com_x),
-    .y_out(com_y),
-    .valid_out(com_valid));
-
-  //localparam [7:0]
-  always_ff @(posedge clk_pixel) begin
-
-    if (sys_rst) begin
-      nodes_done_count <= 0;
-      camera_x <= 0;
-      camera_y <= 0;
-      //game_initialized <= 0;
-      update_late <= 0;
-      update_done_yet <= 0;
-      axle[0] <= 5;
-      axle[1] <= 2;
-      axle_velocity[0] <= 0;
-      axle_velocity[1] <= 0;
-
-      all_num_vertices[0] <= 4;
-      num_obstacles <= 1;
-
-      ideal[0][0] <= -30;
-      ideal[1][0] <= -20;
-      ideal[0][1] <= -20;
-      ideal[1][1] <= 20;
-      ideal[0][2] <= 20;
-      ideal[1][2] <= 20;
-      ideal[0][3] <= 30;
-      ideal[1][3] <= -20;
 
 
-      nodes[0][0] <= -50;
-      nodes[1][0] <= -30;
-      nodes[0][1] <= -30;
-      nodes[1][1] <= 10;
-      nodes[0][2] <= 10;
-      nodes[1][2] <= 10;
-      nodes[0][3] <= 20;
-      nodes[1][3] <= -30;
+  logic [3:0] debug_switches;
+  assign sw[15:12];
+  assign led[15:10] = states;
+  logic [5:0] states;
 
-      velocities[0][0] <= 0;
-      velocities[1][0] <= 0;
-      velocities[0][1] <= 0;
-      velocities[1][1] <= 0;
-      velocities[0][2] <= 0;
-      velocities[1][2] <= 0;
-      velocities[0][3] <= 0;
-      velocities[1][3] <= 0;
+  logic forward, backward;
+  always_comb begin
 
-      constants[0] <= 1;
-      constants[1] <= 0;
-
-      springs[0][0] <= 0;
-      springs[1][0] <= 1;
-      springs[0][1] <= 1;
-      springs[1][1] <= 2;
-      springs[0][2] <= 2;
-      springs[1][2] <= 3;
-      springs[0][3] <= 3;
-      springs[1][3] <= 0;
-      springs[0][4] <= 0;
-      springs[1][4] <= 2;
-      springs[0][5] <= 1;
-      springs[1][5] <= 3;
-
-
-    end else begin
-      if (com_valid) begin
-        camera_x <= com_x;
-        camera_y <= com_y;
+      for (int i = 0; i < NUM_SPRINGS; i = i + 1) begin
+          wheel_equilibriums[i] = $sqrt((wheel_ideal[wheel_springs[1][i]][1] - node1[1] = wheel_ideal[wheel_springs[0][i]][1]) * (wheel_ideal[wheel_springs[1][i]][1] - node1[1] = wheel_ideal[wheel_springs[0][i]][1]) + (wheel_ideal[wheel_springs[1][i]][0] - wheel_ideal[wheel_springs[0][i]][0]) * (wheel_ideal[wheel_springs[1][i]][0] - wheel_ideal[wheel_springs[0][i]][0]));
+          body_equilibriums[i] = $sqrt((body_ideal[body_springs[1][i]][1] - node1[1] = body_ideal[body_springs[0][i]][1]) * (body_ideal[body_springs[1][i]][1] - node1[1] = body_ideal[body_springs[0][i]][1]) + (body_ideal[body_springs[1][i]][0] - body_ideal[body_springs[0][i]][0]) * (body_ideal[body_springs[1][i]][0] - body_ideal[body_springs[0][i]][0]));
       end
 
-      if (update_done_yet == 0 & begin_update) begin
-        update_late <= update_late + 1;
-        update_done_yet <= 0;
+      body_ideal[0][0] = -30;
+      body_ideal[1][0] = -20;
+      body_ideal[0][1] = -20;
+      body_ideal[1][1] = 20;
+      body_ideal[0][2] = 20;
+      body_ideal[1][2] = 20;
+      body_ideal[0][3] = 30;
+      body_ideal[1][3] = -20;
+
+      body_springs[0][0] = 0;
+      body_springs[1][0] = 1;
+      body_springs[0][1] = 1;
+      body_springs[1][1] = 2;
+      body_springs[0][2] = 2;
+      body_springs[1][2] = 3;
+      body_springs[0][3] = 3;
+      body_springs[1][3] = 0;
+      body_springs[0][4] = 0;
+      body_springs[1][4] = 2;
+      body_springs[0][5] = 1;
+      body_springs[1][5] = 3;
+
+      wheel_ideal[0][0] = -30;
+      wheel_ideal[1][0] = -20;
+      wheel_ideal[0][1] = -20;
+      wheel_ideal[1][1] = 20;
+      wheel_ideal[0][2] = 20;
+      wheel_ideal[1][2] = 20;
+      wheel_ideal[0][3] = 30;
+      wheel_ideal[1][3] = -20;
+
+      wheel_springs[0][0] = 0;
+      wheel_springs[1][0] = 1;
+      wheel_springs[0][1] = 1;
+      wheel_springs[1][1] = 2;
+      wheel_springs[0][2] = 2;
+      wheel_springs[1][2] = 3;
+      wheel_springs[0][3] = 3;
+      wheel_springs[1][3] = 0;
+      wheel_springs[0][4] = 0;
+      wheel_springs[1][4] = 2;
+      wheel_springs[0][5] = 1;
+      wheel_springs[1][5] = 3;
+
+
+      //constants do shifts
+      wheel_constants[0] = 1; //spring_k
+      wheel_constants[1] = 0; //spring_b
+      wheel_constants[2] = 1; //ideal_k
+      wheel_constants[3] = 0; //ideal_b
+
+      body_constants[0] = 1; //spring_k
+      body_constants[1] = 0; //spring_b
+      body_constants[2] = 1; //ideal_k
+      body_constants[3] = 0; //ideal_b
+
+      forward = sw[1];
+      backward = sw[2];
+      drive = forward - backward;
+
+      for (int i = 0; i < NUM_VERTICES; i = i + 1) begin
+        for (int j = 0; j < NUM_OBSTACLES; j = j + 1) begin
+          obstacles[0][i][j] = on_screen_xs[j][i];
+          obstacles[1][i][j] = on_screen_ys[j][i];
+        end
       end
-
-      if (new_node_done) begin
-        update_done_yet <= 1;
-        nodes_done_count <= nodes_done_count + 1;
-      end
-
-      if (new_node_valid == 1) begin
-        new_node_count <= new_node_count + 1;
-        new_nodes[0][new_node_count] <= new_node_x;
-        new_nodes[1][new_node_count] <= new_node_y;
-      end
-
-      if (new_velocity_valid == 1) begin
-        new_velocity_count <= new_velocity_count + 1;
-        new_velocities[0][new_velocity_count] <= new_velocity_x;
-        new_velocities[1][new_velocity_count] <= new_velocity_y;
-      end
-
-      if (result_out == 1 && sw[14]) begin
-        new_node_count <= 0;
-        new_velocity_count <= 0;
-
-        nodes[0][0] <= new_nodes[0][0];
-        nodes[1][0] <= new_nodes[1][0];
-        nodes[0][1] <= new_nodes[0][1];
-        nodes[1][1] <= new_nodes[1][1];
-        nodes[0][2] <= new_nodes[0][2];
-        nodes[1][2] <= new_nodes[1][3];
-        nodes[0][3] <= new_nodes[0][3];
-        nodes[1][3] <= new_nodes[1][3];
-
-        velocities[0][0] <= new_velocities[0][0];
-        velocities[1][0] <= new_velocities[1][0];
-        velocities[0][1] <= new_velocities[0][1];
-        velocities[1][1] <= new_velocities[1][1];
-        velocities[0][2] <= new_velocities[0][2];
-        velocities[1][2] <= new_velocities[1][2];
-        velocities[0][3] <= new_velocities[0][3];
-        velocities[1][3] <= new_velocities[1][3];
-      end
-    end
-
 
   end
 
-  logic new_node_done;
-  logic [5:0] wheel_states;
+  //recieving the new positions and velocities from manage_car
+  logic [$clog2(NUM_WHEEL_NODES):0] left_wheel_count, right_wheel_count;
+  logic [$clog2(NUM_BODY_NODES):0] body_count;
 
-  update_wheel #(
-    .NUM_SPRINGS(NUM_SPRINGS),
-    .NUM_NODES(NUM_NODES),
-    .NUM_VERTICES(NUM_VERTICES),
-    .NUM_OBSTACLES(NUM_OBSTACLES),
-    .CONSTANT_SIZE(CONSTANT_SIZE),
-    .POSITION_SIZE(POSITION_SIZE),
-    .VELOCITY_SIZE(VELOCITY_SIZE),
-    .FORCE_SIZE(FORCE_SIZE),
-    .TORQUE(TORQUE),
-    .GRAVITY(GRAVITY),
-    .DT(DT)
-  ) wheel_updater (
-    .clk_in(clk_pixel),
-    .rst_in(sys_rst),
-    .begin_in(begin_update && sw[15]),
-    .constants(constants),
-    .drive(drive),
-    .ideal(ideal),
-    .obstacles(obstacles),
-    .all_num_vertices(all_num_vertices),
-    .num_obstacles(num_obstacles),
-    .nodes_in(nodes),
-    .velocities_in(velocities),
-    .springs(springs),
-    .equilibriums(equilibriums),
-    .axle(axle),
-    .axle_velocity(axle_velocity),
-    .node_out_x(new_node_x),
-    .node_out_y(new_node_y),
-    .node_out_valid(new_node_valid),
-    .node_out_done(new_node_done),
-    .velocity_out_x(new_velocity_x),
-    .velocity_out_y(new_velocity_y),
-    .velocity_out_valid(new_velocity_valid),
-    .axle_force_x(axle_force_x),
-    .axle_force_y(axle_force_y),
-    .states(wheel_states),
-    .result_out(result_out)
-  );
+
+  always_ff @(posedge clk_pixel) begin
+    if (com_valid) begin
+      camera_x <= com_x;
+      camera_y <= com_y;
+    end
+
+    if (left_wheel_valid) begin
+      left_wheel_count <= (left_wheel_count == NUM_WHEEL_NODES-1)?0: left_wheel_count + 1;
+      car_wheel_1_x[left_wheel_count] <= left_wheel_x;
+      car_wheel_1_y[left_wheel_count] <= left_wheel_y;
+    end
+    if (right_wheel_valid) begin
+      right_wheel_count <= (right_wheel_count == NUM_WHEEL_NODES-1)?0: right_wheel_count + 1;
+      car_wheel_2_x[right_wheel_count] <= right_wheel_x;
+      car_wheel_2_y[right_wheel_count] <= right_wheel_y;
+    end
+    if (body_count) begin
+      body_count <= (body_count == NUM_WHEEL_NODES-1)?0: body_count + 1;
+      car_body_x[body_count] <= body_x;
+      car_body_y[body_count] <= body_y;
+    end
+
+  end
+
 
 
 	always_comb begin

@@ -93,8 +93,8 @@ do_collision #(DT, POSITION_SIZE,VELOCITY_SIZE, FORCE_SIZE, NUM_VERTICES) collis
 					pos_y <= pos_y_in;
 					vel_x <= vel_x_in;
 					vel_y <= vel_y_in;
-					dx <= vel_x_in; //* DT;
-					dy <= vel_y_in; //* DT;
+					dx <= vel_x_in >>> DT;
+					dy <= vel_y_in >>> DT;
 					force_x <= 0;
 					force_y <= 0;
 
@@ -114,8 +114,8 @@ do_collision #(DT, POSITION_SIZE,VELOCITY_SIZE, FORCE_SIZE, NUM_VERTICES) collis
 					last_obstacle_num <= 0;
 					obstacle_num <= 1;
 
-					new_pos_x <= pos_x_in + vel_x_in; //* DT;
-					new_pos_y <= pos_y_in + vel_y_in; //* DT;
+					new_pos_x <= pos_x_in + (vel_x_in >>> DT);
+					new_pos_y <= pos_y_in + (vel_y_in >>> DT);
 					new_vel_x <= vel_x_in;
 					new_vel_y <= vel_y_in;
 				end
