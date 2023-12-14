@@ -6,10 +6,10 @@ module update_wheel_tb();
 
   logic clk_in;
   
-  parameter POSITION_SIZE = 8;
-  parameter VELOCITY_SIZE = 6;
+  parameter POSITION_SIZE = 17;
+  parameter VELOCITY_SIZE = 12;
   parameter NUM_VERTICES = 8;
-  parameter NUM_OBSTACLES = 3;
+  parameter NUM_OBSTACLES = 8;
   parameter NUM_NODES = 4;
   parameter NUM_SPRINGS = 6;
   parameter DT = 1;
@@ -17,19 +17,19 @@ module update_wheel_tb();
   parameter FORCE_SIZE = 8;
   parameter GRAVITY = -1;
   parameter TORQUE = 4;
-  parameter CONSTANT_SIZE = 4;
+  parameter CONSTANT_SIZE = 8;
 
   logic begin_update, result_out;
-  logic [2:0] drive = 0;
-  logic [$clog2(NUM_NODES)-1:0] springs [1:0][NUM_SPRINGS];
+  logic signed [2:0] drive = 0;
+  logic [$clog2(NUM_NODES):0] springs [1:0][NUM_SPRINGS];
   logic signed [POSITION_SIZE-1:0] ideal [1:0][NUM_NODES];
   logic signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES];
   logic [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES];
+  logic [$clog2(NUM_OBSTACLES):0] num_obstacles;
   logic [POSITION_SIZE-1:0] axle [1:0];
-  logic [$clog2(NUM_OBSTACLES)-1:0] num_obstacles;
+  
   logic signed [POSITION_SIZE-1:0] nodes [1:0][NUM_NODES];
   logic signed [VELOCITY_SIZE-1:0] velocities [1:0][NUM_NODES];
-  logic signed [FORCE_SIZE-1:0] axle_force [1:0];
   logic signed [VELOCITY_SIZE-1:0] axle_velocity [1:0];
 
   //logic signed [POSITION_SIZE-1:0] com [1:0];
@@ -40,49 +40,72 @@ module update_wheel_tb();
   assign axle_velocity[1] = 0;
   //obstacles must be oriented clockwise
   //obstacle 1
-  assign obstacles[0][0][0] = -10; //point 1
-  assign obstacles[1][0][0] = -10;        
-  assign obstacles[0][1][0] = 10; //point 2
-  assign obstacles[1][1][0] = -10;  
-  assign obstacles[0][2][0] = 10;  //point 3
-  assign obstacles[1][2][0] = 10;
-  assign obstacles[0][3][0] = 15;  //point 4
-  assign obstacles[1][3][0] = 10;
-  assign obstacles[0][4][0] = 15;  //point 5
-  assign obstacles[1][4][0] = -15;
-  assign obstacles[0][5][0] = -15;  //point 6
-  assign obstacles[1][5][0] = -15;
-  assign obstacles[0][6][0] = -15;  //point 7
-  assign obstacles[1][6][0] = 10;
-  assign obstacles[0][7][0] = -10;  //point 8
-  assign obstacles[1][7][0] = 10;
+  assign obstacles[0][0][0] = -100; //point 1
+  assign obstacles[1][0][0] = -100;        
+  assign obstacles[0][1][0] = 100; //point 2
+  assign obstacles[1][1][0] = -100;  
+  assign obstacles[0][2][0] = 100;  //point 3
+  assign obstacles[1][2][0] = 100;
+  assign obstacles[0][3][0] = -100;  //point 4
+  assign obstacles[1][3][0] = 100;
 
-  assign all_num_vertices[0] = 8;
+  /*
+  
+  assign obstacles[0][4][0] = 150;  //point 5
+  assign obstacles[1][4][0] = -150;
+  assign obstacles[0][5][0] = -150;  //point 6
+  assign obstacles[1][5][0] = -150;
+  assign obstacles[0][6][0] = -150;  //point 7
+  assign obstacles[1][6][0] = 100;
+  assign obstacles[0][7][0] = -100;  //point 8
+  assign obstacles[1][7][0] = 100; */
+
+
+  assign all_num_vertices[0] = 4;
   assign num_obstacles = 1;
 
+always_comb begin
+  ideal[0][0] = -30;
+  ideal[1][0] = -20;
+  ideal[0][1] = -20;
+  ideal[1][1] = 20;
+  ideal[0][2] = 20;
+  ideal[1][2] = 20;
+  ideal[0][3] = 30;
+  ideal[1][3] = -20;
 
 
-  assign ideal[0][0] = -3;
-  assign ideal[1][0] = -2;
-  assign ideal[0][1] = -2;
-  assign ideal[1][1] = 2;
-  assign ideal[0][2] = 2;
-  assign ideal[1][2] = 2;
-  assign ideal[0][3] = 3;
-  assign ideal[1][3] = -2;
+  nodes[0][0] = -50;
+  nodes[1][0] = -30;
+  nodes[0][1] = -30;
+  nodes[1][1] = 10;
+  nodes[0][2] = 10;
+  nodes[1][2] = 10;
+  nodes[0][3] = 20;
+  nodes[1][3] = -30;
 
-  assign springs[0][0] = 0;
-  assign springs[1][0] = 1;
-  assign springs[0][1] = 1;
-  assign springs[1][1] = 2;
-  assign springs[0][2] = 2;
-  assign springs[1][2] = 3;
-  assign springs[0][3] = 3;
-  assign springs[1][3] = 0;
-  assign springs[0][4] = 0;
-  assign springs[1][4] = 2;
-  assign springs[0][5] = 1;
-  assign springs[1][5] = 3;
+  velocities[0][0] = 0;
+  velocities[1][0] = 0;
+  velocities[0][1] = 0;
+  velocities[1][1] = 0;
+  velocities[0][2] = 0;
+  velocities[1][2] = 0;
+  velocities[0][3] = 0;
+  velocities[1][3] = 0;
+
+  springs[0][0] = 0;
+  springs[1][0] = 1;
+  springs[0][1] = 1;
+  springs[1][1] = 2;
+  springs[0][2] = 2;
+  springs[1][2] = 3;
+  springs[0][3] = 3;
+  springs[1][3] = 0;
+  springs[0][4] = 0;
+  springs[1][4] = 2;
+  springs[0][5] = 1;
+  springs[1][5] = 3;
+end
 
 
   logic signed [POSITION_SIZE-1:0] new_nodes [1:0][NUM_NODES];
@@ -95,7 +118,7 @@ module update_wheel_tb();
   logic [CONSTANT_SIZE-1:0] constants [4];
 
   assign constants[0] = 1; //springs_k
-  assign constants[1] = 2; //springs_b
+  assign constants[1] = 0; //springs_b
 
   // Instantiate the update_wheel module
   update_wheel #(
@@ -134,9 +157,11 @@ module update_wheel_tb();
     .velocity_out_valid(new_velocity_valid),
     .axle_force_x(axle_force_x),
     .axle_force_y(axle_force_y),
+    .states(wheel_states),
     .result_out(result_out)
   );
 
+  logic [5:0] wheel_states;
 
   //logic signed [POSITION_SIZE-1:0] new_com [1:0];
 
@@ -174,6 +199,9 @@ module update_wheel_tb();
     end
 
   end
+
+  logic [POSITION_SIZE-1:0] equ;
+  assign equ = equilibriums[0];
 
 
   always_ff @(posedge clk_in) begin
@@ -219,8 +247,8 @@ module update_wheel_tb();
 
   //initial block...this is our test simulation
   initial begin
-    $dumpfile("vsg.vcd"); //file to store value change dump (vcd)
-    $dumpvars(1,update_wheel_tb,wheel_updater,wheel_updater.collider, wheel_updater.collider.collision_doer, wheel_updater.ideal_instance, wheel_updater.ideal_instance.springs_instance);
+    $dumpfile("update_wheel.vcd"); //file to store value change dump (vcd)
+    $dumpvars(1,update_wheel_tb,wheel_updater,wheel_updater.collider, wheel_updater.collider.collision_doer, wheel_updater.ideal_instance, wheel_updater.ideal_instance.springs_instance, wheel_updater.springs_instance, wheel_updater.springs_instance.spring_instance);
 
     $display("Starting Sim"); //print nice message at start
     clk_in = 1;
@@ -256,7 +284,7 @@ module update_wheel_tb();
 
     begin_update = 0;
 
-    #3000
+    #30000
 
     $display("Simulation finished");
     $finish;

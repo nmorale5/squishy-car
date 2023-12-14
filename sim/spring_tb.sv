@@ -5,7 +5,7 @@ module spring_tb();
   logic rst_in;
 
   logic clk_in;
-  localparam FORCE_SIZE = 5;
+  localparam FORCE_SIZE = 8;
   localparam POSITION_SIZE = 8;
   localparam VELOCITY_SIZE = 7;
   localparam CONSTANT_SIZE = 3;
@@ -13,15 +13,19 @@ module spring_tb();
   logic signed [CONSTANT_SIZE-1:0] k, b;
   logic signed [FORCE_SIZE-1:0] force_x_out, force_y_out;
   logic [POSITION_SIZE-1:0] equilibrium;
-  assign k = 3;
-  assign b = 1;
+  assign k = 1;
+  assign b = 0;
 
   logic signed [POSITION_SIZE-1:0] v1 [1:0];
   logic signed [POSITION_SIZE-1:0] v2 [1:0];
   logic spring_begin, spring_done;
 
   logic signed [VELOCITY_SIZE-1:0] vel1_x, vel1_y, vel2_x, vel2_y;
-
+  logic signed [POSITION_SIZE-1:0] x_1,y_1,x_2,y_2;
+  assign x_1 = v1[0];
+  assign y_1 = v1[1];
+  assign x_2 = v2[0];
+  assign y_2 = v2[1];
 
   
   spring #(CONSTANT_SIZE, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) spring_instance (
@@ -75,7 +79,7 @@ module spring_tb();
     equilibrium = 2;
     #10
     spring_begin = 0;
-    #300
+    #800
 
     spring_begin = 1;
     v1[0] = 2;
@@ -90,7 +94,7 @@ module spring_tb();
     equilibrium = 2;
     #10
     spring_begin = 0;
-    #300
+    #800
 
     spring_begin = 1;
     v1[0] = 2;
@@ -105,13 +109,29 @@ module spring_tb();
     equilibrium = 2;
     #10
     spring_begin = 0;
-    #300
+    #800
 
     spring_begin = 1;
     v1[0] = -13;
     v1[1] = -8;
     v2[0] = 98;
     v2[1] = 111;
+    
+    vel1_x = 0;
+    vel1_y = 0;
+    vel2_x = 0; 
+    vel2_y = 0;
+
+    equilibrium = 0;
+    #10
+    spring_begin = 0;
+    #1000
+
+    spring_begin = 1;
+    v1[0] = -1;
+    v1[1] = -8;
+    v2[0] = 8;
+    v2[1] = 11;
     
     vel1_x = 5;
     vel1_y = 6;
@@ -121,8 +141,7 @@ module spring_tb();
     equilibrium = 0;
     #10
     spring_begin = 0;
-    #300
-
+    #500
     #6000
 
     $display("Simulation finished");

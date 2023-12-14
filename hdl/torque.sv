@@ -1,4 +1,4 @@
-module torque #(NUM_NODES = 10, POSITION_SIZE=8, FORCE_SIZE=8, TORQUE=4)(
+module torque #(NUM_NODES = 10, POSITION_SIZE=8, FORCE_SIZE=8, TORQUE=1)(
   input  wire clk_in,
   input  wire rst_in,
   input  wire begin_in,
@@ -23,6 +23,7 @@ torque_state state = IDLE;
 logic [$clog2(NUM_NODES):0] current_node;
 
 
+
 always_ff @(posedge clk_in) begin
   case(state)
     IDLE: begin
@@ -39,8 +40,8 @@ always_ff @(posedge clk_in) begin
         force_out_valid <= 0;
       end else begin
         current_node <= current_node + 1;
-        force_x_out <= (axle[1] - nodes[1][current_node]) * drive * TORQUE;
-        force_y_out <= (nodes[0][current_node] - axle[0]) * drive * TORQUE;
+        force_x_out <= ((axle[1] - nodes[1][current_node]) * drive) << TORQUE;
+        force_y_out <= ((nodes[0][current_node] - axle[0]) * drive) << TORQUE;
         force_out_valid <= 1;
       end
     end

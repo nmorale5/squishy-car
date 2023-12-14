@@ -54,11 +54,11 @@ logic [POSITION_SIZE * NUM_NODES-1:0] cross_sum; //fix size later
 logic [POSITION_SIZE * NUM_NODES-1:0] dot_sum; //fix size later
 logic [2 * POSITION_SIZE+1-1:0] cross_product, dot_product;
 
-assign k = 5;
-assign b = 1;
+assign k = 1;
+assign b = 0;
 
-assign cross_product = actual_node[0] * ideal_node[1] - actual_node[1] * ideal_node[0];
-assign dot_product = actual_node[0] * ideal_node[0] + actual_node[1] * ideal_node[1];
+//assign cross_product = actual_node[0] * ideal_node[1] - actual_node[1] * ideal_node[0];
+//assign dot_product = actual_node[0] * ideal_node[0] + actual_node[1] * ideal_node[1];
 logic [$clog2(NUM_NODES):0] current_node;
 
 //for testing
@@ -87,7 +87,18 @@ always_ff @(posedge clk_in) begin
 
           end
         end
+        /*
+        MULTIPLY: begin
+          mult_count <= mult_count + 1;
+          case (mult_count)
+
+          endcase 
+
+        end */
         THETA: begin
+          state <= ROTATION;
+
+            /*
             current_node <= current_node + 1;
             if (current_node == NUM_NODES) begin
                 state <= ROTATION;
@@ -99,7 +110,10 @@ always_ff @(posedge clk_in) begin
                 actual_node[1] <= nodes[1][current_node];
                 ideal_node[0] <= ideal[0][current_node] + axle[0];
                 ideal_node[1] <= ideal[1][current_node] + axle[1];
+                state <= MULTIPLY;
             end
+            */
+
         end
         ROTATION: begin
             //rotate the ideal shape

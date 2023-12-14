@@ -33,7 +33,15 @@ logic signed [VELOCITY_SIZE-1:0] vel_x,vel_y, vx_n,vy_n;
 logic signed [ACCELERATION_SIZE-1:0] coll_acc_x, coll_acc_y;
 
 logic collision, new_values_result, begin_new_values;
+//for testing
+/*
+logic [POSITION_SIZE-1:0] v1x,v1y,v2x,v2y;
+assign v1x = v1[0];
+assign v1y = v1[1];
+assign v2x = v2[0];
+assign v2y = v2[1];*/
 
+//testing done
 
 collision_new_values #(POSITION_SIZE, VELOCITY_SIZE, ACCELERATION_SIZE, DT) new_values (
     .clk_in(clk_in),
@@ -59,19 +67,7 @@ collision_new_values #(POSITION_SIZE, VELOCITY_SIZE, ACCELERATION_SIZE, DT) new_
     .output_valid(new_values_result)
   );
 
- /* 
 
-collision_checker #(POSITION_SIZE, DT) collision_check (
-    .clk_in(clk_in),
-    .rst_in(rst_in),
-    .v1(v1),
-    .v2(v2),
-    .pos_x(pos_x),
-    .pos_y(pos_y),
-    .dx(dx),
-    .dy(dy),
-    .collision(collision)
-  ); */
 
 localparam VERTEX_COUNT_SIZE = NUM_VERTICES;//$clog(NUM_VERTICES);
 logic [VERTEX_COUNT_SIZE-1:0] vertex_num, last_vertex_num; // the current vertex we're on (can make smaller)
@@ -114,6 +110,11 @@ assign o13 = obstacle[1][3];
 					vel_y <= vel_y_in;
 					dx <= dx_in;
 					dy <= dy_in;
+
+					x_new <= pos_x_in + dx_in;
+					y_new <= pos_y_in + dy_in;
+					vel_x_new <= vel_x_in;
+					vel_y_new <= vel_y_in;
 
 					//grab first two vertices
 					v1[0] <= obstacle_in[0][0];
@@ -176,6 +177,7 @@ assign o13 = obstacle[1][3];
 						v2[0] <= obstacle[0][vertex_num+1];
 						v2[1] <= obstacle[1][vertex_num+1];
 					end
+					begin_new_values <= 1;
 				end
 			end
 		
@@ -192,6 +194,8 @@ assign o13 = obstacle[1][3];
 			
 
 endmodule
+
+
 
 
 /*
@@ -240,41 +244,4 @@ endmodule
 		coll_x = ((a <= x_num  & b >= x_num) 
 			| (a >= x_num & b <= x_num));
 
-*/
-
-
-
-
-
-//exact startpoint on line
-//m * pos_x + b = pos_y
-//rise * pos_x = run * pos_y - run * b
-//rise * pos_x = run * pos_y + rise * v2[0]- run * v2[1]
-//rise * (pos_x - v2[0]) = run * (pos_y - v2[1]) ****result
-//-run * b = rise * v2[0]- run * v2[1]
-// rise * v2[0] = run * v2[1] - run * b
-// m * v2[0] + b = v2[1]
-//startpoint within range of line
-//(((denom * pos_x - x_num)*(denom * pos_x - x_num) + (denom * pos_y - y_num)*(denom * pos_y - y_num)) > (2*denom*denom));
-
-//need the initial position for the next one to be the intersection from the last one. 
-  //Problem: the update_point module needs to know the information or it needs to be stored elsewhere and signals to know when to use it.
-  //1) Add new outputs for the intersection
-  //  Con: rounding error from division could cause artificial collisions
-  //  PRO: least signal change, parallelizing is fine
-  //2) Have registers hold collision values and a new input that says whether to use old values
-  //  Con: more registers, need to change logic in module, redundant or useless signalls, parallelizing becomes harder
-  //  Pro: no false collisions, less signal additions
-/*
-module rounded_division #(DIVIDEND_SIZE,DIVISOR_SIZE,QUOTIENT_SIZE)(
-  input  wire clk_in,
-  input  wire rst_in,
-  input  wire signed [DIVIDEND_SIZE-1:0] dividend,
-  input  wire signed [DIVISOR_SIZE-1:0] divisor,
-  input  wire signed [QUOTIENT_SIZE-1:0] quotient
-);
-
-assign quotient = ((2 * (dividend % divisor)) > dividend)?1:0;
-
-endmodule
 */

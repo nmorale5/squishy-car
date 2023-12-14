@@ -3,8 +3,8 @@ module springs #(NUM_SPRINGS, NUM_NODES, CONSTANT_SIZE, POSITION_SIZE, VELOCITY_
   input  wire clk_in,
   input  wire rst_in,
   input  wire input_valid,
-  input  wire [CONSTANT_SIZE-1:0] k,
-  input  wire [CONSTANT_SIZE-1:0] b,
+  input  wire signed [CONSTANT_SIZE-1:0] k,
+  input  wire signed [CONSTANT_SIZE-1:0] b,
   input  wire signed [POSITION_SIZE-1:0] nodes [1:0][NUM_NODES],
   input  wire signed [VELOCITY_SIZE-1:0] velocities [1:0][NUM_NODES],
   input  wire [$clog2(NUM_NODES):0] springs [1:0][NUM_SPRINGS],
@@ -32,7 +32,7 @@ logic signed [VELOCITY_SIZE-1:0] vel2_y;
 logic signed [FORCE_SIZE - 1:0] force_x;
 logic signed [FORCE_SIZE - 1:0] force_y;
 logic [POSITION_SIZE-1:0] equilibrium;
-logic [$clog2(NUM_SPRINGS):0] current_spring;
+
 logic begin_spring, spring_valid;
 
 spring #(CONSTANT_SIZE, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) spring_instance (
@@ -53,10 +53,15 @@ spring #(CONSTANT_SIZE, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE) spring_instanc
     .result_valid(spring_valid)
   );
 
-logic [$clog2(NUM_NODES):0] node1,node2;
+logic [$clog2(NUM_NODES):0] node1,node2, last_node1, last_node2;
+logic [$clog2(NUM_SPRINGS)-1:0] current_spring = 4;
+logic [$clog2(NUM_SPRINGS)-1:0] last_spring = 4;
+
 
 assign node1 = springs[0][current_spring];
 assign node2 = springs[1][current_spring];
+assign last_node1 = springs[0][last_spring];
+assign last_node2 = springs[1][last_spring];
 logic [$clog2(NUM_NODES)-1:0] current_node;
 
 //for testing
@@ -65,6 +70,11 @@ logic [$clog2(NUM_SPRINGS):0] test_num;
 assign test_num = 0;
 assign tf1 = spring_forces[0][test_num];
 assign tf2 = spring_forces[1][test_num];
+  logic signed [POSITION_SIZE-1:0] x_1,y_1,x_2,y_2;
+  assign x_1 = v1[0];
+  assign y_1 = v1[1];
+  assign x_2 = v2[0];
+  assign y_2 = v2[1];
 
 //end testing
 
@@ -77,39 +87,44 @@ always_ff @(posedge clk_in) begin
           output_valid <= 0;
           if (input_valid == 1) begin
             current_spring <= 1;
+            last_spring <= 0;
             state <= CALCULATE;
-            v1[0] <= nodes[0][node1];
-            v1[1] <= nodes[1][node1];
-            v2[0] <= nodes[0][node2];
-            v2[1] <= nodes[1][node2];
+            
+            v1[0] <= nodes[0][springs[0][0]];
+            v1[1] <= nodes[1][springs[0][0]];
+            v2[0] <= nodes[0][springs[1][0]];
+            v2[1] <= nodes[1][springs[1][0]];
 
-            vel1_x <= velocities[0][node1];
-            vel1_y <= velocities[1][node1];
-            vel2_x <= velocities[0][node2];
-            vel2_y <= velocities[1][node2];
+            vel1_x <= velocities[0][springs[0][0]];
+            vel1_y <= velocities[1][springs[0][0]];
+            vel2_x <= velocities[0][springs[1][0]];
+            vel2_y <= velocities[1][springs[1][0]];
+            
+            equilibrium <= equilibriums[0];
+            begin_spring <= 1;
 
             for (int i = 0; i< NUM_NODES; i = i + 1) begin
               spring_forces[0][i] <= 0;
               spring_forces[1][i] <= 0;
             end
 
-            equilibrium <= equilibriums[0];
-            begin_spring <= 1;
-          end else begin
-            current_spring <= 0;
+
           end
         end
         CALCULATE: begin
           if (spring_valid) begin
-            current_spring <= current_spring + 1;
-            if (current_spring == NUM_SPRINGS) begin
+            spring_forces[0][last_node1] <= spring_forces[0][last_node1] - force_x;
+            spring_forces[1][last_node1] <= spring_forces[1][last_node1] - force_y;
+            spring_forces[0][last_node2] <= spring_forces[0][last_node2] + force_x;
+            spring_forces[1][last_node2] <= spring_forces[1][last_node2] + force_y;
+              
+            if (current_spring == 0) begin
               state <= RESULT;
               spring_out_num <= 0;
             end else begin
-              spring_forces[0][springs[0][current_spring-1]] <= spring_forces[0][springs[0][current_spring-1]] + force_x;
-              spring_forces[1][springs[0][current_spring-1]] <= spring_forces[1][springs[0][current_spring-1]] + force_y;
-              spring_forces[0][springs[1][current_spring-1]] <= spring_forces[0][springs[1][current_spring-1]] - force_x;
-              spring_forces[1][springs[1][current_spring-1]] <= spring_forces[1][springs[1][current_spring-1]] - force_y;
+              current_spring <= (current_spring + 1 == NUM_SPRINGS)?0:current_spring + 1;
+              last_spring <= current_spring;
+
 
               v1[0] <= nodes[0][node1];
               v1[1] <= nodes[1][node1];

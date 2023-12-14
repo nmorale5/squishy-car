@@ -36,7 +36,7 @@ module top_level(
   assign rgb0 = 0;
   /* have btnd control system reset */
   logic sys_rst;
-  // assign sys_rst = btn[0];
+  assign sys_rst = btn[0];
  
   logic clk_pixel, clk_5x; //clock lines
   logic locked; //locked signal (we'll leave unused but still hook it up)
@@ -171,9 +171,9 @@ module top_level(
   localparam PIXEL_WIDTH = 1280;
   localparam PIXEL_HEIGHT = 720;
   localparam SCALE_LEVEL = 0;
-  localparam WORLD_BITS = 18;
-  localparam MAX_OBSTACLES_ON_SCREEN = 5;
-  localparam MAX_NUM_VERTICES = 10;
+  localparam WORLD_BITS = 17;
+  localparam MAX_OBSTACLES_ON_SCREEN = 1;
+  localparam MAX_NUM_VERTICES = 4;
   localparam CAR_BODY_VERTICES = 4;
   localparam CAR_WHEEL_VERTICES = 4;
   localparam BACKGROUND_COLOR = `LBLUE;
@@ -185,10 +185,10 @@ module top_level(
 
 
   logic signed [WORLD_BITS-1:0] camera_x, camera_y;
-  assign camera_x = 0;
-  assign camera_y = 0;
+
   // assign camera_x = 640;
   // assign camera_y = 360;
+  /*
   always_ff @(posedge clk_pixel) begin
     if (new_frame) begin
       if (btn[3]) begin
@@ -202,29 +202,32 @@ module top_level(
       end
     end
   end
+  */
 
   logic signed [WORLD_BITS-1:0] car_body_x [CAR_BODY_VERTICES];
   logic signed [WORLD_BITS-1:0] car_body_y [CAR_BODY_VERTICES];
   logic signed [WORLD_BITS-1:0] car_wheel_2_x [CAR_WHEEL_VERTICES];
   logic signed [WORLD_BITS-1:0] car_wheel_2_y [CAR_WHEEL_VERTICES];
 
-  assign car_body_x[0] = 500;
-  assign car_body_y[0] = 300;
-  assign car_body_x[1] = 500;
-  assign car_body_y[1] = 400;
-  assign car_body_x[2] = 700;
-  assign car_body_y[2] = 400;
-  assign car_body_x[3] = 700;
-  assign car_body_y[3] = 300;
+  assign car_body_x[0] = 50;
+  assign car_body_y[0] = 30;
+  assign car_body_x[1] = 50;
+  assign car_body_y[1] = 40;
+  assign car_body_x[2] = 70;
+  assign car_body_y[2] = 40;
+  assign car_body_x[3] = 70;
+  assign car_body_y[3] = 30;
 
-  assign car_wheel_2_x[0] = 675;
-  assign car_wheel_2_y[0] = 275;
-  assign car_wheel_2_x[1] = 675;
-  assign car_wheel_2_y[1] = 325;
-  assign car_wheel_2_x[2] = 725;
-  assign car_wheel_2_y[2] = 325;
-  assign car_wheel_2_x[3] = 725;
-  assign car_wheel_2_y[3] = 275;
+/*
+  assign car_wheel_2_x[0] = 65;
+  assign car_wheel_2_y[0] = 25;
+  assign car_wheel_2_x[1] = 65;
+  assign car_wheel_2_y[1] = 35;
+  assign car_wheel_2_x[2] = 75;
+  assign car_wheel_2_y[2] = 35;
+  assign car_wheel_2_x[3] = 75;
+  assign car_wheel_2_y[3] = 25;
+  */
 
   render # (
     .PIXEL_WIDTH(PIXEL_WIDTH),
@@ -261,15 +264,22 @@ module top_level(
     .color_out(color_out)
   );
 
+  logic forward, backward;
   always_comb begin
     for (int i = 0; i < NUM_NODES; i = i + 1) begin
       car_wheel_1_x[i] = nodes[0][i];
       car_wheel_1_y[i] = nodes[1][i];
+      car_wheel_2_x[i] = new_nodes[0][i];
+      car_wheel_2_x[i] = new_nodes[0][i];
     end
+
+    forward = sw[1];
+    backward = sw[2];
+    drive = forward - backward;
 
   end
 
-    logic signed [WORLD_BITS-1:0] car_wheel_1_x [CAR_WHEEL_VERTICES];
+  logic signed [WORLD_BITS-1:0] car_wheel_1_x [CAR_WHEEL_VERTICES];
   logic signed [WORLD_BITS-1:0] car_wheel_1_y [CAR_WHEEL_VERTICES];
 
 /*
@@ -283,8 +293,7 @@ module top_level(
   assign car_wheel_1_y[3] = 275; */
 
   //Physics
-  // Constants for testing
-  localparam NUM_SPRINGS = 10;
+  localparam NUM_SPRINGS = 7;
   localparam NUM_NODES = CAR_WHEEL_VERTICES;
   localparam NUM_VERTICES = MAX_NUM_VERTICES;
   localparam NUM_OBSTACLES = MAX_OBSTACLES_ON_SCREEN;
@@ -298,7 +307,7 @@ module top_level(
 
   // Signals for testing
   logic begin_update, result_out;
-  logic [2:0] drive = 0;
+  logic signed [2:0] drive;
   logic [$clog2(NUM_NODES):0] springs [1:0][NUM_SPRINGS];
   logic signed [POSITION_SIZE-1:0] ideal [1:0][NUM_NODES];
   logic signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES];
@@ -321,9 +330,7 @@ module top_level(
   logic [$clog2(NUM_NODES):0] new_velocity_count = 0;
 
   assign begin_update = new_frame;
-  assign led[15] = update_late;
 
-  logic update_late, update_done_yet;
 
   logic [POSITION_SIZE-1:0] node1 [1:0];
   logic [POSITION_SIZE-1:0] node2 [1:0];
@@ -343,11 +350,44 @@ module top_level(
   //assign equilibriums[0] = 4;
   //assign equilibriums[1] = 2
 
+  assign led[4:0] = update_late;
+  assign led[9:5] = nodes_done_count;
+  assign led[15:10] = wheel_states;
 
+/*states will be attached to lights for debugging
+bit  value
+12-10    wheel state
+15-13    forces_ready
+  13      springs_force
+  14      ideal_force
+  15      torque_force
+*/
 
-  always_ff @(posedge clk_good) begin
+  logic[7:0] update_late;
+  logic[7:0] nodes_done_count;
+  logic update_done_yet;
+
+  logic [POSITION_SIZE-1:0] com_x, com_y;
+  logic com_valid;
+
+  center_of_mass #(POSITION_SIZE, NUM_NODES) com (
+    .clk_in(clk_pixel),
+    .rst_in(sys_rst),
+    .x_in(new_node_x),
+    .y_in(new_node_y),
+    .valid_in(new_node_valid),
+    .tabulate_in(new_node_done),
+    .x_out(com_x),
+    .y_out(com_y),
+    .valid_out(com_valid));
+
+  //localparam [7:0]
+  always_ff @(posedge clk_pixel) begin
 
     if (sys_rst) begin
+      nodes_done_count <= 0;
+      camera_x <= 0;
+      camera_y <= 0;
       //game_initialized <= 0;
       update_late <= 0;
       update_done_yet <= 0;
@@ -359,24 +399,24 @@ module top_level(
       all_num_vertices[0] <= 4;
       num_obstacles <= 1;
 
-      ideal[0][0] = -30;
-      ideal[1][0] = -20;
-      ideal[0][1] = -20;
-      ideal[1][1] = 20;
-      ideal[0][2] = 20;
-      ideal[1][2] = 20;
-      ideal[0][3] = 30;
-      ideal[1][3] = -20;
+      ideal[0][0] <= -30;
+      ideal[1][0] <= -20;
+      ideal[0][1] <= -20;
+      ideal[1][1] <= 20;
+      ideal[0][2] <= 20;
+      ideal[1][2] <= 20;
+      ideal[0][3] <= 30;
+      ideal[1][3] <= -20;
 
 
-      nodes[0][0] <= -30;
-      nodes[1][0] <= -20;
-      nodes[0][1] <= -20;
-      nodes[1][1] <= 20;
-      nodes[0][2] <= 20;
-      nodes[1][2] <= 20;
-      nodes[0][3] <= 30;
-      nodes[1][3] <= -20;
+      nodes[0][0] <= -50;
+      nodes[1][0] <= -30;
+      nodes[0][1] <= -30;
+      nodes[1][1] <= 10;
+      nodes[0][2] <= 10;
+      nodes[1][2] <= 10;
+      nodes[0][3] <= 20;
+      nodes[1][3] <= -30;
 
       velocities[0][0] <= 0;
       velocities[1][0] <= 0;
@@ -388,24 +428,36 @@ module top_level(
       velocities[1][3] <= 0;
 
       constants[0] <= 1;
-      constants[1] <= 1;
+      constants[1] <= 0;
 
-      springs[0][0] = 0;
-      springs[1][0] = 1;
-      springs[0][1] = 1;
-      springs[1][1] = 2;
-      springs[0][2] = 2;
-      springs[1][2] = 3;
-      springs[0][3] = 3;
-      springs[1][3] = 0;
-      springs[0][4] = 0;
-      springs[1][4] = 2;
-      springs[0][5] = 1;
-      springs[1][5] = 3;
+      springs[0][0] <= 0;
+      springs[1][0] <= 1;
+      springs[0][1] <= 1;
+      springs[1][1] <= 2;
+      springs[0][2] <= 2;
+      springs[1][2] <= 3;
+      springs[0][3] <= 3;
+      springs[1][3] <= 0;
+      springs[0][4] <= 0;
+      springs[1][4] <= 2;
+      springs[0][5] <= 1;
+      springs[1][5] <= 3;
+
 
     end else begin
+      if (com_valid) begin
+        camera_x <= com_x;
+        camera_y <= com_y;
+      end
+
       if (update_done_yet == 0 & begin_update) begin
-        update_late <= 1;
+        update_late <= update_late + 1;
+        update_done_yet <= 0;
+      end
+
+      if (new_node_done) begin
+        update_done_yet <= 1;
+        nodes_done_count <= nodes_done_count + 1;
       end
 
       if (new_node_valid == 1) begin
@@ -420,10 +472,10 @@ module top_level(
         new_velocities[1][new_velocity_count] <= new_velocity_y;
       end
 
-      if (result_out == 1) begin
+      if (result_out == 1 && sw[14]) begin
         new_node_count <= 0;
         new_velocity_count <= 0;
-        update_done_yet <= 1;
+
         nodes[0][0] <= new_nodes[0][0];
         nodes[1][0] <= new_nodes[1][0];
         nodes[0][1] <= new_nodes[0][1];
@@ -447,7 +499,8 @@ module top_level(
 
   end
 
-
+  logic new_node_done;
+  logic [5:0] wheel_states;
 
   update_wheel #(
     .NUM_SPRINGS(NUM_SPRINGS),
@@ -462,9 +515,9 @@ module top_level(
     .GRAVITY(GRAVITY),
     .DT(DT)
   ) wheel_updater (
-    .clk_in(clk_good),
+    .clk_in(clk_pixel),
     .rst_in(sys_rst),
-    .begin_in(begin_update),
+    .begin_in(begin_update && sw[15]),
     .constants(constants),
     .drive(drive),
     .ideal(ideal),
@@ -480,11 +533,13 @@ module top_level(
     .node_out_x(new_node_x),
     .node_out_y(new_node_y),
     .node_out_valid(new_node_valid),
+    .node_out_done(new_node_done),
     .velocity_out_x(new_velocity_x),
     .velocity_out_y(new_velocity_y),
     .velocity_out_valid(new_velocity_valid),
     .axle_force_x(axle_force_x),
     .axle_force_y(axle_force_y),
+    .states(wheel_states),
     .result_out(result_out)
   );
 

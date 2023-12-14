@@ -90,6 +90,7 @@ module manage_environment # (
   logic signed [WORLD_BITS-1:0] rotate_x;
   logic signed [WORLD_BITS-1:0] rotate_y;
 
+/*
   rotate_18_bit m_rotate (
     .aclk(clk_in),
     .s_axis_cartesian_tdata({ rotate_point_y_arg, rotate_point_x_arg }),
@@ -98,7 +99,7 @@ module manage_environment # (
     .s_axis_phase_tvalid(rotate_valid),
     .m_axis_dout_tdata({ rotate_y, rotate_x }),
     .m_axis_dout_tvalid(rotate_out_valid)
-  );
+  ); */
 
   always_ff @(posedge clk_in) begin
     for (int e = 0; e < MAX_LATENCY - 1; e = e + 1) begin

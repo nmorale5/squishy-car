@@ -5,39 +5,57 @@ module sqrt #(WIDTH=12, OUTPUT_SIZE=6) (
   output logic [WIDTH-1:0] sqrt_x,  // Output square root approximation
   output logic result_valid
 );
-  typedef enum {IDLE = 0, CALC = 1, RESULT=2} sqrt_state;
+  typedef enum {IDLE = 0, CALC = 1, RESULT=2, MULT=3, SQUARE=4} sqrt_state;
   sqrt_state state = IDLE;
 
   //calculates floor of sqrt
   logic [WIDTH-1:0] approx, approx_next;
-  logic [2 * WIDTH - 1:0] approx_squared;
+  logic [2 * WIDTH - 1:0] approx_squared, mult;
   logic [WIDTH-1:0] min, max;
+  logic condition;
+  logic signed [2 * WIDTH:0] diff;
 
-  assign approx_squared = approx * approx;
+  //assign diff = $signed(approx_squared) - $signed(x);
+   //diff <= 0 && ((~diff+1) > $signed(approx << 1 + 1));
+
+  
+
+  
 
   always_ff @(posedge clk_in) begin
     case (state)
         IDLE: begin
             result_valid <= 0;
             if (valid_in) begin
-                state <= CALC;
+                state <= SQUARE;
                 approx <= x >> 1;
                 max <= x;
                 min <= 0;
             end
         end
         CALC: begin
-            if (approx_squared <= x & x < approx_squared + 2 * approx + 1 ) begin
+            
+            if (condition) begin
                 state <= RESULT;
             end else begin
                 if (approx_squared > x) begin
                     max <= approx;
-                    approx <= min + (approx - min)/2;
+                    approx <= min + ((approx - min) >> 1);
                 end else begin
-                    approx <= approx + (max - approx)/2;
+                    approx <= approx + ((max - approx) >> 1);
                     min <= approx;
                 end
+                state <= SQUARE;
             end
+        end
+        SQUARE: begin
+            approx_squared <= approx * approx; 
+            state <= MULT;
+        end
+        MULT: begin
+            condition <= approx_squared <= x && x < approx_squared + (approx << 1) + 1;
+            state <= CALC;
+
         end
         RESULT: begin
             sqrt_x <= approx;

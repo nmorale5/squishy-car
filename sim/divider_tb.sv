@@ -53,19 +53,19 @@ module divider_tb();
     divisor = 15;
     #10
     divider_in_valid = 0;
-    #300
+    #400
     divider_in_valid = 1;
     dividend = -300;
     divisor = 15;
     #10
     divider_in_valid = 0;
-    #300
+    #400
     divider_in_valid = 1;
     dividend = -300;
     divisor = -15;
     #10
     divider_in_valid = 0;
-    #300
+    #400
 
 
     #6000

@@ -8,7 +8,7 @@ module update_wheel #(NUM_SPRINGS, NUM_NODES, NUM_VERTICES, NUM_OBSTACLES, CONST
   input  wire signed [POSITION_SIZE-1:0] ideal [1:0][NUM_NODES],
   input  wire signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES],
   input  wire [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES], //array of num_vertices
-  input  wire [$clog2(NUM_OBSTACLES)-1:0] num_obstacles,
+  input  wire [$clog2(NUM_OBSTACLES):0] num_obstacles,
   input  wire signed [POSITION_SIZE-1:0] nodes_in [1:0][NUM_NODES],
   input  wire signed [VELOCITY_SIZE-1:0] velocities_in [1:0][NUM_NODES],
   input  wire [$clog2(NUM_NODES):0] springs [1:0][NUM_SPRINGS],
@@ -18,16 +18,19 @@ module update_wheel #(NUM_SPRINGS, NUM_NODES, NUM_VERTICES, NUM_OBSTACLES, CONST
   output logic signed [POSITION_SIZE-1:0] node_out_x,
   output logic signed [POSITION_SIZE-1:0] node_out_y,
   output logic node_out_valid,
+  output logic node_out_done,
   output logic signed [VELOCITY_SIZE-1:0] velocity_out_x,
   output logic signed [VELOCITY_SIZE-1:0] velocity_out_y,
   output logic velocity_out_valid,
   output logic signed [FORCE_SIZE-1:0] axle_force_x,
   output logic signed [FORCE_SIZE-1:0] axle_force_y,
+  output logic [5:0] states,
   //output logic signed [POSITION_SIZE-1:0] com_out [1:0], 
   output logic result_out
   
 );
 //for testing
+/*
 logic [$clog2(NUM_VERTICES):0] nv;
 assign nv = all_num_vertices[0];
 logic signed [POSITION_SIZE-1:0] ax, ay;
@@ -55,6 +58,7 @@ assign id_force_y = ideal_forces[1][0];
 logic [FORCE_SIZE-1:0] tor_force_x, tor_force_y;
 assign tor_force_x = torque_forces[0][0];
 assign tor_force_y = torque_forces[1][0];
+*/
 
 /*
 generate
@@ -105,8 +109,6 @@ endgenerate */
 
   //output controls
   logic [$clog2(NUM_NODES):0] velocity_out_num;
-
-
 
 
   collisions #(
@@ -214,11 +216,25 @@ torque #(
 logic [FORCE_SIZE-1:0] gravity_force;
 assign gravity_force = GRAVITY;
 
+/*states will be attached to lights for debugging
+bit  value
+0-2    state
+3-5    forces_ready
+  3      springs_force
+  4      ideal_force
+  5      torque_force
+*/
+
+
+assign states[2:0] = state;
+assign states[5:3] = forces_ready;
 
 always_ff @(posedge clk_in) begin
     case(state)
         IDLE: begin
+
             result_out <= 0;
+            node_out_done <= 0;
             if (begin_in == 1) begin
                 state <= COLLISIONS;
                 begin_collisions <= 1;
@@ -256,6 +272,7 @@ always_ff @(posedge clk_in) begin
 
             if (collision_node == NUM_NODES) begin
               state <= FORCES;
+              node_out_done <= 1;
               begin_springs <= 1;
               begin_ideal <= 1;
               begin_torque <= 1;
@@ -280,6 +297,7 @@ always_ff @(posedge clk_in) begin
           end
         end
         FORCES: begin
+            node_out_done <= 0;
             node_out_valid <= 0;
             begin_springs <= 0;
             begin_ideal <= 0;
@@ -332,8 +350,8 @@ always_ff @(posedge clk_in) begin
             //new_vel_x <= new_vel_x + acceleration_x * DT;
             ///new_vel_y <= new_vel_y + acceleration_y * DT;
             for (integer i = 0; i< NUM_NODES; i = i + 1) begin
-              velocities[0][i] <= velocities[0][i] + total_forces[0][i] * DT;//add divide by mass later
-              velocities[1][i] <= velocities[1][i] + total_forces[1][i] * DT; 
+              velocities[0][i] <= velocities[0][i] + total_forces[0][i];// * DT;//add divide by mass later
+              velocities[1][i] <= velocities[1][i] + total_forces[1][i];// * DT; 
             end
             velocity_out_num <= 0;
 
@@ -350,6 +368,7 @@ always_ff @(posedge clk_in) begin
             result_out <= 1;
             state <= IDLE;
             velocity_out_valid <= 0;
+            forces_ready <= 0;
           end else begin
             velocity_out_x <= velocities[0][velocity_out_num];
             velocity_out_y <= velocities[1][velocity_out_num];
