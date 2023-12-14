@@ -31,7 +31,7 @@ logic signed [VELOCITY_SIZE-1:0] vel2_x;
 logic signed [VELOCITY_SIZE-1:0] vel2_y;
 logic signed [FORCE_SIZE - 1:0] force_x;
 logic signed [FORCE_SIZE - 1:0] force_y;
-logic [POSITION_SIZE-1:0] equilibrium;
+logic signed [POSITION_SIZE-1:0] equilibrium;
 
 logic begin_spring, spring_valid;
 
@@ -85,6 +85,7 @@ always_ff @(posedge clk_in) begin
     case(state)
         IDLE: begin
           output_valid <= 0;
+          spring_force_valid <= 0;
           if (input_valid == 1) begin
             current_spring <= 1;
             last_spring <= 0;

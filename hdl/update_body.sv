@@ -4,7 +4,6 @@ module update_wheel #(NUM_SPRINGS, NUM_NODES, NUM_VERTICES, NUM_OBSTACLES, CONST
   input  wire begin_in,
   input  wire [CONSTANT_SIZE-1:0] constants [4],
   //input wire axle_valid,
-  input  wire signed [2:0] drive,
   input  wire signed [POSITION_SIZE-1:0] ideal [1:0][NUM_NODES],
   input  wire signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES],
   input  wire [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES], //array of num_vertices
@@ -25,13 +24,12 @@ module update_wheel #(NUM_SPRINGS, NUM_NODES, NUM_VERTICES, NUM_OBSTACLES, CONST
   output logic signed [FORCE_SIZE-1:0] axle_force_x,
   output logic signed [FORCE_SIZE-1:0] axle_force_y,
   output logic axle_out_valid,
-  output logic [5:0] states,
   //output logic signed [POSITION_SIZE-1:0] com_out [1:0], 
   output logic result_out
   
 );
 //for testing
-/*
+
 logic [$clog2(NUM_VERTICES):0] nv;
 assign nv = all_num_vertices[0];
 logic signed [POSITION_SIZE-1:0] ax, ay;
@@ -56,26 +54,23 @@ logic [FORCE_SIZE-1:0] id_force_x, id_force_y;
 assign id_force_x = ideal_forces[0][test_node];
 assign id_force_y = ideal_forces[1][test_node];
 
-logic [FORCE_SIZE-1:0] tor_force_x, tor_force_y;
-assign tor_force_x = torque_forces[0][test_node];
-assign tor_force_y = torque_forces[1][test_nodes];
-*/
+
 
 
 
 //done for testing
 
-  typedef enum {IDLE = 0, COLLISIONS = 1, FORCES = 2, VELOCITY = 3, RESULT=4} wheel_state;
-  wheel_state state = IDLE;
+  typedef enum {IDLE = 0, COLLISIONS = 1, FORCES = 2, VELOCITY = 3, RESULT=4} body_state;
+  body_state state = IDLE;
 
 
   //internal variables
   logic signed [POSITION_SIZE-1:0] nodes [1:0][NUM_NODES];
   logic signed [VELOCITY_SIZE-1:0] velocities [1:0][NUM_NODES];
-//for submodules, there should be a copy of everything in the order, collisions, springs, ideal, torque
+//for submodules, there should be a copy of everything in the order, collisions, springs, ideal
   //submodule controls
-  logic begin_collisions, begin_ideal, begin_torque, begin_com, begin_springs;
-  logic ideal_done, torque_done, com_done, springs_done; //maybe a done signal for collisions
+  logic begin_collisions, begin_ideal, begin_com, begin_springs;
+  logic ideal_done, com_done, springs_done; //maybe a done signal for collisions
   logic [2:0] forces_ready = 0;
 
   //submodule inputs
@@ -83,18 +78,17 @@ assign tor_force_y = torque_forces[1][test_nodes];
   logic signed [VELOCITY_SIZE-1:0] point_vel_x, point_vel_y, point_new_vel_x, point_new_vel_y;
 
   //submodule outputs
-  logic signed [FORCE_SIZE-1:0] point_force_x, springs_force_x, ideal_force_x, torque_force_x;
-  logic signed [FORCE_SIZE-1:0] point_force_y, springs_force_y, ideal_force_y, torque_force_y;
-  logic collision_force_valid, springs_force_valid, ideal_force_valid, torque_force_valid;
+  logic signed [FORCE_SIZE-1:0] point_force_x, springs_force_x, ideal_force_x;
+  logic signed [FORCE_SIZE-1:0] point_force_y, springs_force_y, ideal_force_y;
+  logic collision_force_valid, springs_force_valid, ideal_force_valid;
 
 
   //force holders and controls
   logic signed [FORCE_SIZE-1:0] collisions_forces [1:0][NUM_NODES];
   logic signed [FORCE_SIZE-1:0] springs_forces [1:0] [NUM_NODES];
   logic signed [FORCE_SIZE-1:0] ideal_forces [1:0][NUM_NODES];
-  logic signed [FORCE_SIZE-1:0] torque_forces [1:0][NUM_NODES];
 
-  logic [$clog2(NUM_NODES):0] collision_node, springs_force_count, ideal_force_count, torque_force_count;
+  logic [$clog2(NUM_NODES):0] collision_node, springs_force_count, ideal_force_count;
 
   logic signed [FORCE_SIZE-1:0] total_forces [1:0][NUM_NODES];
 
@@ -189,26 +183,6 @@ assign tor_force_y = torque_forces[1][test_nodes];
 assign axle_out_valid = ideal_force_valid;
 
 
-//do torque here
-torque #(
-    .NUM_NODES(NUM_NODES),
-    .POSITION_SIZE(POSITION_SIZE),
-    .FORCE_SIZE(FORCE_SIZE),
-    .TORQUE(TORQUE)
-) torque_instance (
-    .clk_in(clk_in),
-    .rst_in(rst_in),
-    .begin_in(begin_torque),
-    .drive(drive),
-    .nodes(nodes),
-    .axle(axle),
-    .force_x_out(torque_force_x),
-    .force_y_out(torque_force_y),
-    .force_out_valid(torque_force_valid),
-    .result_out(torque_done)
-  );
-
-
 //do gravity here
 logic [FORCE_SIZE-1:0] gravity_force;
 assign gravity_force = GRAVITY;
@@ -219,12 +193,8 @@ bit  value
 3-5    forces_ready
   3      springs_force
   4      ideal_force
-  5      torque_force
 */
 
-
-assign states[2:0] = state;
-assign states[5:3] = forces_ready;
 
 always_ff @(posedge clk_in) begin
     case(state)
@@ -272,11 +242,9 @@ always_ff @(posedge clk_in) begin
               node_out_done <= 1;
               begin_springs <= 1;
               begin_ideal <= 1;
-              begin_torque <= 1;
               begin_com <= 1;
               springs_force_count <= 0;
               ideal_force_count <= 0;
-              torque_force_count <= 0;
             end else begin
               begin_collisions <= 1;
               collision_node <= collision_node + 1;
@@ -298,7 +266,6 @@ always_ff @(posedge clk_in) begin
             node_out_valid <= 0;
             begin_springs <= 0;
             begin_ideal <= 0;
-            begin_torque <= 0;
             begin_com <= 0;
             if (springs_force_valid == 1) begin
               springs_force_count <= springs_force_count + 1;
@@ -312,12 +279,6 @@ always_ff @(posedge clk_in) begin
               ideal_forces[1][ideal_force_count] <= ideal_force_y;
             end
 
-            if (torque_force_valid == 1) begin
-              torque_force_count <= torque_force_count + 1;
-              torque_forces[0][torque_force_count] <= torque_force_x;
-              torque_forces[1][torque_force_count] <= torque_force_y;
-            end
-
 
             if (springs_done == 1) begin
                 forces_ready[0] <= 1;
@@ -325,16 +286,15 @@ always_ff @(posedge clk_in) begin
             if (ideal_done == 1) begin
                 forces_ready[1] <= 1;
             end
-            if (torque_done == 1) begin
-                forces_ready[2] <= 1;
-            end
+            forces_ready[2] <= 1;
+
 
             if (forces_ready == 3'b111) begin
               //genvar i;
               //generate
                 for (integer i = 0; i< NUM_NODES; i = i + 1) begin
-                  total_forces[0][i] <= total_forces[0][i] + springs_forces[0][i] + ideal_forces[0][i] + torque_forces[0][i];
-                  total_forces[1][i] <= total_forces[1][i] + springs_forces[1][i] + ideal_forces[1][i] + torque_forces[1][i];
+                  total_forces[0][i] <= total_forces[0][i] + springs_forces[0][i] + ideal_forces[0][i];
+                  total_forces[1][i] <= total_forces[1][i] + springs_forces[1][i] + ideal_forces[1][i];
                 end
                 
               //endgenerate

@@ -174,7 +174,7 @@ module top_level(
   localparam MAX_OBSTACLES_ON_SCREEN = 1;
   localparam MAX_NUM_VERTICES = 4;
   localparam CAR_BODY_VERTICES = 4;
-  localparam CAR_WHEEL_VERTICES = 4;
+  localparam CAR_WHEEL_VERTICES = 8;
   localparam BACKGROUND_COLOR = `LBLUE;
   localparam CAR_BODY_COLOR = `RED;
   localparam CAR_WHEEL_COLOR = `BROWN;
@@ -253,10 +253,10 @@ module top_level(
 
 
   //Physics
-  localparam NUM_WHEEL_SPRINGS = 6;
+  localparam NUM_WHEEL_SPRINGS = 12;
   localparam NUM_BODY_SPRINGS = 6;
-  localparam NUM_WHEEL_NODES = CAR_WHEEL_VERTICES
-  localparam NUM_BODY_NODES = BODY_WHEEL_VERTICES
+  localparam NUM_WHEEL_NODES = CAR_WHEEL_VERTICES;
+  localparam NUM_BODY_NODES = CAR_BODY_VERTICES;
   localparam NUM_VERTICES = MAX_NUM_VERTICES;
   localparam NUM_OBSTACLES = MAX_OBSTACLES_ON_SCREEN;
   localparam POSITION_SIZE = WORLD_BITS;
@@ -267,14 +267,19 @@ module top_level(
   localparam DT = 3;
   localparam CONSTANT_SIZE = 3;
 
-  assign begin_update = got_all_obstacles;
+  logic [10:0] update_count = 0;
 
 
+  assign begin_update = got_all_obstacles && (update_count == 0);
+
+  logic begin_update;
+  logic [CONSTANT_SIZE-1:0] wheel_constants [4];
+  logic [CONSTANT_SIZE-1:0] body_constants [4];
   logic signed [2:0] drive;
   logic signed [POSITION_SIZE-1:0] wheel_ideal [1:0][NUM_WHEEL_NODES];
   logic signed [POSITION_SIZE-1:0] body_ideal [1:0][NUM_BODY_NODES];
-  logic [$clog2(NUM_NODES):0] wheel_springs [1:0][NUM_WHEEL_SPRINGS];
-  logic [$clog2(NUM_NODES):0] body_springs [1:0][NUM_BODY_SPRINGS];
+  logic [$clog2(NUM_WHEEL_NODES):0] wheel_springs [1:0][NUM_WHEEL_SPRINGS];
+  logic [$clog2(NUM_BODY_NODES):0] body_springs [1:0][NUM_BODY_SPRINGS];
   logic [POSITION_SIZE-1:0] wheel_equilibriums [NUM_WHEEL_SPRINGS];
   logic [POSITION_SIZE-1:0] body_equilibriums [NUM_WHEEL_SPRINGS];
   logic signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES];
@@ -289,6 +294,7 @@ module top_level(
   logic signed [POSITION_SIZE-1:0] body_x;
   logic signed [POSITION_SIZE-1:0] body_y;
   logic body_valid;
+  logic [5:0] states;
   logic [POSITION_SIZE-1:0] com_x, com_y;
   logic com_valid;
   logic all_done;
@@ -296,14 +302,19 @@ module top_level(
 
 
     manage_car #(
+    .DT(DT),
     .NUM_WHEEL_NODES(NUM_WHEEL_NODES),
     .NUM_BODY_NODES(NUM_BODY_NODES),
+    .NUM_WHEEL_SPRINGS(NUM_WHEEL_SPRINGS),
+    .NUM_BODY_SPRINGS(NUM_BODY_SPRINGS),
     .NUM_VERTICES(NUM_VERTICES),
     .NUM_OBSTACLES(NUM_OBSTACLES),
     .POSITION_SIZE(POSITION_SIZE),
     .VELOCITY_SIZE(VELOCITY_SIZE),
     .FORCE_SIZE(FORCE_SIZE),
-    .CONSTANT_SIZE(CONSTANT_SIZE)
+    .CONSTANT_SIZE(CONSTANT_SIZE),
+    .TORQUE(TORQUE),
+    .GRAVITY(GRAVITY)
   ) car_instance (
     .clk_in(clk_pixel),
     .rst_in(sys_rst),
@@ -315,6 +326,8 @@ module top_level(
     .body_ideal(body_ideal),
     .wheel_springs(wheel_springs),
     .body_springs(body_springs),
+    .wheel_equilibriums(wheel_equilibriums),
+    .body_equilibriums(body_equilibriums),
     .obstacles(obstacles),
     .all_num_vertices(all_num_vertices), //num_sides_each_poly
     .num_obstacles(num_obstacles), //num_polys_on_screen
@@ -354,18 +367,18 @@ sw   action
 */
 
 
-
   logic [3:0] debug_switches;
-  assign sw[15:12];
-  assign led[15:10] = states;
-  logic [5:0] states;
+  assign led[15:9] = states;
 
   logic forward, backward;
   always_comb begin
 
-      for (int i = 0; i < NUM_SPRINGS; i = i + 1) begin
-          wheel_equilibriums[i] = $sqrt((wheel_ideal[wheel_springs[1][i]][1] - node1[1] = wheel_ideal[wheel_springs[0][i]][1]) * (wheel_ideal[wheel_springs[1][i]][1] - node1[1] = wheel_ideal[wheel_springs[0][i]][1]) + (wheel_ideal[wheel_springs[1][i]][0] - wheel_ideal[wheel_springs[0][i]][0]) * (wheel_ideal[wheel_springs[1][i]][0] - wheel_ideal[wheel_springs[0][i]][0]));
-          body_equilibriums[i] = $sqrt((body_ideal[body_springs[1][i]][1] - node1[1] = body_ideal[body_springs[0][i]][1]) * (body_ideal[body_springs[1][i]][1] - node1[1] = body_ideal[body_springs[0][i]][1]) + (body_ideal[body_springs[1][i]][0] - body_ideal[body_springs[0][i]][0]) * (body_ideal[body_springs[1][i]][0] - body_ideal[body_springs[0][i]][0]));
+      for (int i = 0; i < NUM_WHEEL_SPRINGS; i = i + 1) begin
+          wheel_equilibriums[i] = 10;//$sqrt((wheel_ideal[wheel_springs[1][i]][1] - wheel_ideal[wheel_springs[0][i]][1]) * (wheel_ideal[wheel_springs[1][i]][1] - wheel_ideal[wheel_springs[0][i]][1]) + (wheel_ideal[wheel_springs[1][i]][0] - wheel_ideal[wheel_springs[0][i]][0]) * (wheel_ideal[wheel_springs[1][i]][0] - wheel_ideal[wheel_springs[0][i]][0]));
+      end
+
+      for (int i = 0; i < NUM_BODY_SPRINGS; i = i + 1) begin
+          body_equilibriums[i] = 10;//$sqrt((body_ideal[body_springs[1][i]][1] - body_ideal[body_springs[0][i]][1]) * (body_ideal[body_springs[1][i]][1] - body_ideal[body_springs[0][i]][1]) + (body_ideal[body_springs[1][i]][0] - body_ideal[body_springs[0][i]][0]) * (body_ideal[body_springs[1][i]][0] - body_ideal[body_springs[0][i]][0]));
       end
 
       body_ideal[0][0] = -30;
@@ -390,14 +403,22 @@ sw   action
       body_springs[0][5] = 1;
       body_springs[1][5] = 3;
 
-      wheel_ideal[0][0] = -30;
-      wheel_ideal[1][0] = -20;
-      wheel_ideal[0][1] = -20;
-      wheel_ideal[1][1] = 20;
-      wheel_ideal[0][2] = 20;
-      wheel_ideal[1][2] = 20;
-      wheel_ideal[0][3] = 30;
-      wheel_ideal[1][3] = -20;
+      wheel_ideal[0][0] = 0;
+      wheel_ideal[1][0] = 50;
+      wheel_ideal[0][1] = 35;
+      wheel_ideal[1][1] = 35;
+      wheel_ideal[0][2] = 50;
+      wheel_ideal[1][2] = 0;
+      wheel_ideal[0][3] = 35;
+      wheel_ideal[1][3] = -35;
+      wheel_ideal[0][4] = 0;
+      wheel_ideal[1][4] = -50;
+      wheel_ideal[0][5] = -35;
+      wheel_ideal[1][5] = -35;
+      wheel_ideal[0][6] = -50;
+      wheel_ideal[1][6] = 0;
+      wheel_ideal[0][7] = -35;
+      wheel_ideal[1][7] = -35;
 
       wheel_springs[0][0] = 0;
       wheel_springs[1][0] = 1;
@@ -406,11 +427,23 @@ sw   action
       wheel_springs[0][2] = 2;
       wheel_springs[1][2] = 3;
       wheel_springs[0][3] = 3;
-      wheel_springs[1][3] = 0;
-      wheel_springs[0][4] = 0;
-      wheel_springs[1][4] = 2;
-      wheel_springs[0][5] = 1;
-      wheel_springs[1][5] = 3;
+      wheel_springs[1][3] = 4;
+      wheel_springs[0][4] = 4;
+      wheel_springs[1][4] = 5;
+      wheel_springs[0][5] = 5;
+      wheel_springs[1][5] = 6;
+      wheel_springs[1][6] = 6;
+      wheel_springs[0][6] = 7;
+      wheel_springs[1][7] = 7;
+      wheel_springs[0][7] = 0;
+      wheel_springs[1][8] = 0;
+      wheel_springs[1][8] = 4;
+      wheel_springs[0][9] = 1;
+      wheel_springs[1][9] = 5;
+      wheel_springs[0][10] = 2;
+      wheel_springs[1][10] = 6;
+      wheel_springs[0][11] = 3;
+      wheel_springs[1][11] = 7;
 
 
       //constants do shifts
@@ -419,7 +452,7 @@ sw   action
       wheel_constants[2] = 1; //ideal_k
       wheel_constants[3] = 0; //ideal_b
 
-      body_constants[0] = 1; //spring_k
+      body_constants[0] = 0; //spring_k
       body_constants[1] = 0; //spring_b
       body_constants[2] = 1; //ideal_k
       body_constants[3] = 0; //ideal_b
@@ -443,6 +476,9 @@ sw   action
 
 
   always_ff @(posedge clk_pixel) begin
+    if (begin_update) begin
+      update_count <= (update_count == sw[12:6])?0:update_count + 1;
+    end
     if (com_valid) begin
       camera_x <= com_x;
       camera_y <= com_y;

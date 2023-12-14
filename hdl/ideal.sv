@@ -50,16 +50,11 @@ ideal_springs #(NUM_NODES, CONSTANT_SIZE, POSITION_SIZE, VELOCITY_SIZE, FORCE_SI
 
 typedef enum {IDLE = 0, THETA = 1, ROTATION = 2, SPRINGS = 3, RESULT=4} ideal_state;
 ideal_state state = IDLE;
-logic signed [FORCE_SIZE-1:0] k;
-logic signed [FORCE_SIZE-1:0] b;
 logic [POSITION_SIZE-1:0] actual_node;
 logic [POSITION_SIZE-1:0] ideal_node;
 logic [POSITION_SIZE * NUM_NODES-1:0] cross_sum; //fix size later
 logic [POSITION_SIZE * NUM_NODES-1:0] dot_sum; //fix size later
 logic [2 * POSITION_SIZE+1-1:0] cross_product, dot_product;
-
-assign k = 1;
-assign b = 0;
 
 //assign cross_product = actual_node[0] * ideal_node[1] - actual_node[1] * ideal_node[0];
 //assign dot_product = actual_node[0] * ideal_node[0] + actual_node[1] * ideal_node[1];

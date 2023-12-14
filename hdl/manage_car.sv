@@ -1,4 +1,4 @@
-module manage_car #(NUM_WHEEL_NODES, NUM_BODY_NODES, NUM_VERTICES, NUM_OBSTACLES, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE)(
+module manage_car #(DT, NUM_WHEEL_NODES, NUM_BODY_NODES, NUM_WHEEL_SPRINGS, NUM_BODY_SPRINGS, NUM_VERTICES, NUM_OBSTACLES, CONSTANT_SIZE, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE, TORQUE, GRAVITY)(
   input  wire clk_in,
   input  wire rst_in,
   input  wire begin_update,
@@ -7,6 +7,10 @@ module manage_car #(NUM_WHEEL_NODES, NUM_BODY_NODES, NUM_VERTICES, NUM_OBSTACLES
   input  wire signed [2:0] drive,
   input  wire signed [POSITION_SIZE-1:0] wheel_ideal [1:0][NUM_WHEEL_NODES],
   input  wire signed [POSITION_SIZE-1:0] body_ideal [1:0][NUM_BODY_NODES],
+  input  wire [$clog2(NUM_WHEEL_NODES):0] wheel_springs [1:0][NUM_WHEEL_SPRINGS],
+  input  wire [$clog2(NUM_BODY_NODES):0] body_springs [1:0][NUM_BODY_SPRINGS],
+  input  wire [POSITION_SIZE-1:0] wheel_equilibriums [NUM_WHEEL_SPRINGS],
+  input  wire [POSITION_SIZE-1:0] body_equilibriums [NUM_WHEEL_SPRINGS],
   input  wire signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES],
   input  wire [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES], //array of num_vertices
   input  wire [$clog2(NUM_OBSTACLES):0] num_obstacles,
@@ -29,44 +33,44 @@ module manage_car #(NUM_WHEEL_NODES, NUM_BODY_NODES, NUM_VERTICES, NUM_OBSTACLES
 );
 
   logic begin_body, begin_wheel, wheel_result, body_result;
-  logic [$clog2(NUM_NODES):0] left_wheel_springs [1:0][NUM_WHEEL_SPRINGS];
-  logic [$clog2(NUM_NODES):0] right_wheel_springs [1:0][NUM_WHEEL_SPRINGS];
-  logic [$clog2(NUM_NODES):0] body_springs [1:0][NUM_BODY_SPRINGS];
-  logic signed [POSITION_SIZE-1:0] wheel_ideal [1:0][NUM_WHEEL_NODES];
-  //logic signed [POSITION_SIZE-1:0] right_wheel_ideal [1:0][NUM_WHEEL_NODES];
-  logic signed [POSITION_SIZE-1:0] body_ideal [1:0][NUM_BODY_NODES];
+  logic signed [POSITION_SIZE-1:0] wheel_nodes [1:0][NUM_WHEEL_NODES];
   logic signed [POSITION_SIZE-1:0] left_wheel_nodes [1:0][NUM_WHEEL_NODES];
   logic signed [POSITION_SIZE-1:0] right_wheel_nodes [1:0][NUM_WHEEL_NODES];
   logic signed [POSITION_SIZE-1:0] body_nodes [1:0][NUM_BODY_NODES];
+  logic signed [VELOCITY_SIZE-1:0] wheel_velocities [1:0][NUM_WHEEL_NODES];
   logic signed [VELOCITY_SIZE-1:0] left_wheel_velocities [1:0][NUM_WHEEL_NODES];
   logic signed [VELOCITY_SIZE-1:0] right_wheel_velocities [1:0][NUM_WHEEL_NODES];
   logic signed [VELOCITY_SIZE-1:0] body_velocities [1:0][NUM_BODY_NODES];
-  logic [POSITION_SIZE-1:0] wheel_equilibriums [NUM_WHEEL_SPRINGS];
-  logic [POSITION_SIZE-1:0] body_equilibriums [NUM_WHEEL_SPRINGS];
 
-  logic signed [POSITION_SIZE-1:0] left_wheel_new_node_x, left_wheel_new_node_y, right_wheel_new_node_x, right_wheel_new_node_y, body_new_node_x, body_new_node_y;
-  logic signed [VELOCITY_SIZE-1:0]   left_wheel_new_velocity_x, left_wheel_new_velocity_y, right_wheel_new_velocity_x, right_wheel_new_velocity_y, body_new_velocity_x, body_new_velocity_y;
-  logic wheel_node_valid, wheel_velocity_valid, body_node_valid, body_velocity_valid;
+  logic signed [POSITION_SIZE-1:0] wheel_new_node_x, wheel_new_node_y, left_wheel_new_node_x, left_wheel_new_node_y, right_wheel_new_node_x, right_wheel_new_node_y, body_new_node_x, body_new_node_y;
+  logic signed [VELOCITY_SIZE-1:0] wheel_new_velocity_x, wheel_new_velocity_y, left_wheel_new_velocity_x, left_wheel_new_velocity_y, right_wheel_new_velocity_x, right_wheel_new_velocity_y, body_new_velocity_x, body_new_velocity_y;
+  logic wheel_node_valid, wheel_velocity_valid, axle_valid, body_node_valid, body_velocity_valid;
   logic [$clog2(NUM_WHEEL_NODES):0] wheel_node_count, wheel_velocity_count;
-  logic [$clog2(NUM_BODY_NODES):0] body_node_count, body_node_count;
+  logic [$clog2(NUM_BODY_NODES):0] body_node_count, body_velocity_count;
   logic body_nodes_done;
 
-
+   
 
   //logic signed [VELOCITY_SIZE-1:0] new_velocities [1:0][NUM_NODES];
   //logic signed [POSITION_SIZE-1:0] new_nodes [1:0][NUM_NODES];
 
   //axle stuff
+  logic signed [POSITION_SIZE-1:0] axle [1:0];
   logic signed [POSITION_SIZE-1:0] left_axle [1:0];
   logic signed [POSITION_SIZE-1:0] right_axle [1:0];
-  logic signed [FORCE_SIZE-1:0] left_axle_force [1:0];
-  logic signed [FORCE_SIZE-1:0] right_axle_force [1:0];
+  //logic signed [FORCE_SIZE-1:0] axle_force [1:0];
+  //logic signed [FORCE_SIZE-1:0] left_axle_force [1:0];
+  //logic signed [FORCE_SIZE-1:0] right_axle_force [1:0];
+  logic signed [VELOCITY_SIZE-1:0] axle_velocity [1:0];
   logic signed [VELOCITY_SIZE-1:0] left_axle_velocity [1:0];
   logic signed [VELOCITY_SIZE-1:0] right_axle_velocity [1:0];
-  logic signed [FORCE_SIZE-1:0] left_axle_force_x, left_axle_force_y, right_axle_force_x, right_axle_force_y;
+  logic signed [FORCE_SIZE-1:0] axle_force_x, axle_force_y, left_axle_force_x, left_axle_force_y, right_axle_force_x, right_axle_force_y;
 
+    logic [5:0] wheel_states;
+    assign states = wheel_states;
 
-  center_of_mass #(POSITION_SIZE, NUM_NODES) com (
+/*
+  center_of_mass #(POSITION_SIZE, NUM_BODY_NODES) com (
     .clk_in(clk_in),
     .rst_in(rst_in),
     .x_in(body_new_node_x),
@@ -75,7 +79,10 @@ module manage_car #(NUM_WHEEL_NODES, NUM_BODY_NODES, NUM_VERTICES, NUM_OBSTACLES
     .tabulate_in(body_nodes_done),
     .x_out(com_x_out),
     .y_out(com_y_out),
-    .valid_out(com_out_valid));
+    .valid_out(com_out_valid)); */
+
+    assign com_x_out = 0;
+    assign com_y_out = 0;
 
   update_wheel #(
     .NUM_SPRINGS(NUM_WHEEL_SPRINGS),
@@ -114,106 +121,61 @@ module manage_car #(NUM_WHEEL_NODES, NUM_BODY_NODES, NUM_VERTICES, NUM_OBSTACLES
     .velocity_out_valid(wheel_velocity_valid),
     .axle_force_x(axle_force_x),
     .axle_force_y(axle_force_y),
-    .axle_out_valid(axle_valid)
+    .axle_out_valid(axle_valid),
     .states(wheel_states),
     .result_out(wheel_result)
   );
 
-  assign states = wheel_states;
 
   //0 is left, 1 is right
   logic wheel_choice;
 
-  if (wheel_choice ==0 ) begin
-    wheel_nodes = left_wheel_nodes;
-    wheel_velocities = left_wheel_velocities;
-    axle = left_axle;
-    axle_velocity = left_axle_velocity;
 
-  end else begin
-    wheel_nodes = right_wheel_nodes;
-    wheel_velocities = right_wheel_velocities;
-    axle = right_axle;
-    axle_velocity = right_axle_velocity;
-  end
+always_comb begin
+    left_axle_velocity[0] = 0;
+    left_axle_velocity[1] = 0;
+    right_axle_velocity[0] = 0;
+    right_axle_velocity[1] = 0;
+
+    left_axle[0] = 0;
+    left_axle[1] = 0;
+    right_axle[0] = 0;
+    right_axle[1] = 0;
+
+    if (wheel_choice == 0) begin
+        for (int i = 0; i < NUM_WHEEL_NODES; i = i + 1) begin
+            wheel_nodes[0][i] = left_wheel_nodes[0][i];
+            wheel_nodes[1][i] = left_wheel_nodes[1][i];
+            wheel_velocities[0][i] = left_wheel_velocities[0][i];
+            wheel_velocities[1][i] = left_wheel_velocities[1][i];
+        end
+        axle[0] = left_axle[0];
+        axle[1] = left_axle[1];
+        axle_velocity[0] = left_axle_velocity[0];
+        axle_velocity[1] = left_axle_velocity[1];
+
+    end else begin
+
+        for (int i = 0; i < NUM_WHEEL_NODES; i = i + 1) begin
+            wheel_nodes[0][i] = right_wheel_nodes[0][i];
+            wheel_nodes[1][i] = right_wheel_nodes[1][i];
+            wheel_velocities[0][i] = right_wheel_velocities[0][i];
+            wheel_velocities[1][i] = right_wheel_velocities[1][i];
+        end
+
+        axle[0] = right_axle[0];
+        axle[1] = right_axle[1];
+        axle_velocity[0] = right_axle_velocity[0];
+        axle_velocity[1] = right_axle_velocity[1];
+    end
+    end
   
 
 
 
-/*
-
-      update_late <= 0;
-      update_done_yet <= 0;
-            axle_velocity[0] <= 0;
-      axle_velocity[1] <= 0;
-      axle[0] <= 5;
-      axle[1] <= 2;
-            nodes_done_count <= 0;
-    */
-
-    logic [5:0] wheel_states;
-      assign states = wheel_states;
-
     logic [3:0] dones;
     assign all_done = & dones;
 
-    logic [POSITION_SIZE-1:0] node1 [1:0];
-     logic [POSITION_SIZE-1:0] node2 [1:0];
-    always_comb begin
-
-        for (int i = 0; i < NUM_SPRINGS; i = i + 1) begin
-            node1[0] = wheel_ideal[wheel_springs[0][i]][0];
-            node2[0] = wheel_ideal[wheel_springs[1][i]][0];
-            node1[1] = wheel_ideal[wheel_springs[0][i]][1];
-            node2[1] = wheel_ideal[wheel_springs[1][i]][1];
-            wheel_equilibriums[i] = $sqrt((node2[1]-node1[1]) * (node2[1]-node1[1]) + (node2[0]-node1[0]) * (node2[0]-node1[0]));
-        end
-
-        body_ideal[0][0] = -30;
-        body_ideal[1][0] = -20;
-        body_ideal[0][1] = -20;
-        body_ideal[1][1] = 20;
-        body_ideal[0][2] = 20;
-        body_ideal[1][2] = 20;
-        body_ideal[0][3] = 30;
-        body_ideal[1][3] = -20;
-
-        body_springs[0][0] = 0;
-        body_springs[1][0] = 1;
-        body_springs[0][1] = 1;
-        body_springs[1][1] = 2;
-        body_springs[0][2] = 2;
-        body_springs[1][2] = 3;
-        body_springs[0][3] = 3;
-        body_springs[1][3] = 0;
-        body_springs[0][4] = 0;
-        body_springs[1][4] = 2;
-        body_springs[0][5] = 1;
-        body_springs[1][5] = 3;
-
-        wheel_ideal[0][0] = -30;
-        wheel_ideal[1][0] = -20;
-        wheel_ideal[0][1] = -20;
-        wheel_ideal[1][1] = 20;
-        wheel_ideal[0][2] = 20;
-        wheel_ideal[1][2] = 20;
-        wheel_ideal[0][3] = 30;
-        wheel_ideal[1][3] = -20;
-
-        wheel_springs[0][0] = 0;
-        wheel_springs[1][0] = 1;
-        wheel_springs[0][1] = 1;
-        wheel_springs[1][1] = 2;
-        wheel_springs[0][2] = 2;
-        wheel_springs[1][2] = 3;
-        wheel_springs[0][3] = 3;
-        wheel_springs[1][3] = 0;
-        wheel_springs[0][4] = 0;
-        wheel_springs[1][4] = 2;
-        wheel_springs[0][5] = 1;
-        wheel_springs[1][5] = 3;
-
-    end
 
   always_ff @(posedge clk_in) begin
     if (rst_in) begin //initialize everything
@@ -227,10 +189,10 @@ module manage_car #(NUM_WHEEL_NODES, NUM_BODY_NODES, NUM_VERTICES, NUM_OBSTACLES
         body_nodes[0][i] <= body_ideal[0][i];
         body_nodes[1][i] <= body_ideal[1][i];
 
-        left_wheel_nodes[0][i] <= wheel_ideal[0][i] - 30;
+        left_wheel_nodes[0][i] <= wheel_ideal[0][i] - 75;
         left_wheel_nodes[1][i] <= wheel_ideal[1][i] - 10;
 
-        right_wheel_nodes[0][i] <= wheel_ideal[0][i] + 30;
+        right_wheel_nodes[0][i] <= wheel_ideal[0][i] + 75;
         right_wheel_nodes[1][i] <= wheel_ideal[1][i] - 10;
 
         left_wheel_velocities[0][i] <= 0;

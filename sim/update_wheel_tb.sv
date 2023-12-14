@@ -12,7 +12,7 @@ module update_wheel_tb();
   parameter NUM_OBSTACLES = 8;
   parameter NUM_NODES = 4;
   parameter NUM_SPRINGS = 6;
-  parameter DT = 1;
+  parameter DT = 4;
   parameter ACCELERATION_SIZE = 8;
   parameter FORCE_SIZE = 8;
   parameter GRAVITY = -1;
@@ -34,8 +34,8 @@ module update_wheel_tb();
 
   //logic signed [POSITION_SIZE-1:0] com [1:0];
 
-  assign axle[0] = 5;
-  assign axle[1] = 2;
+  assign axle[0] = 0;
+  assign axle[1] = 0;
   assign axle_velocity[0] = 0;
   assign axle_velocity[1] = 0;
   //obstacles must be oriented clockwise
@@ -74,24 +74,17 @@ always_comb begin
   ideal[0][3] = 30;
   ideal[1][3] = -20;
 
+  equilibriums[0] = 41;
+  equilibriums[1] = 40;
+  equilibriums[2] = 41;
+  equilibriums[3] = 60;
+  equilibriums[4] = 64;
+  equilibriums[5] = 64;
 
-  nodes[0][0] = -50;
-  nodes[1][0] = -30;
-  nodes[0][1] = -30;
-  nodes[1][1] = 10;
-  nodes[0][2] = 10;
-  nodes[1][2] = 10;
-  nodes[0][3] = 20;
-  nodes[1][3] = -30;
 
-  velocities[0][0] = 0;
-  velocities[1][0] = 0;
-  velocities[0][1] = 0;
-  velocities[1][1] = 0;
-  velocities[0][2] = 0;
-  velocities[1][2] = 0;
-  velocities[0][3] = 0;
-  velocities[1][3] = 0;
+
+
+
 
   springs[0][0] = 0;
   springs[1][0] = 1;
@@ -114,11 +107,13 @@ end
   logic signed [VELOCITY_SIZE-1:0] new_velocity_x, new_velocity_y;
   logic signed [FORCE_SIZE-1:0] axle_force_x, axle_force_y;
   logic new_node_valid, new_velocity_valid;
-  logic [POSITION_SIZE-1:0] equilibriums [NUM_SPRINGS];
+  logic signed [POSITION_SIZE-1:0] equilibriums [NUM_SPRINGS];
   logic [CONSTANT_SIZE-1:0] constants [4];
 
-  assign constants[0] = 1; //springs_k
+  assign constants[0] = 0; //springs_k
   assign constants[1] = 0; //springs_b
+  assign constants[2] = 1; 
+  assign constants[3] = 0;
 
   // Instantiate the update_wheel module
   update_wheel #(
@@ -177,6 +172,10 @@ end
   assign new_velocities_x = new_velocities[0][0];
   assign new_velocities_y = new_velocities[1][0];
 
+  logic [POSITION_SIZE-1:0] equ0, equ1;
+  assign equ0 = equilibriums[0];
+  assign equ1 = equilibriums[1];
+
   logic [$clog2(NUM_NODES):0] new_node_count, new_velocity_count;
 
   //assign new_nodes[0][0] = 0;
@@ -186,19 +185,6 @@ end
       clk_in = !clk_in;
   end
 
-  logic [POSITION_SIZE-1:0] node1 [1:0];
-  logic [POSITION_SIZE-1:0] node2 [1:0];
-  
-  always_comb begin
-    for (int i = 0; i < NUM_SPRINGS; i = i + 1) begin
-      node1[0] = ideal[springs[0][i]][0];
-      node2[0] = ideal[springs[1][i]][0];
-      node1[1] = ideal[springs[0][i]][1];
-      node2[1] = ideal[springs[1][i]][1];
-      equilibriums[i] = $sqrt((node2[1]-node1[1]) * (node2[1]-node1[1]) + (node2[0]-node1[0]) * (node2[0]-node1[0]));
-    end
-
-  end
 
   logic [POSITION_SIZE-1:0] equ;
   assign equ = equilibriums[0];
@@ -260,14 +246,25 @@ end
     #10;
     rst_in = 0;
     begin_update = 1;
-    nodes[0][0] = 3;
-     nodes[1][0] = -2;
-     nodes[0][1] = -2;
-     nodes[1][1] = 2;
-     nodes[0][2] = 2;
-     nodes[1][2] = 2;
-     nodes[0][3] = 3;
-     nodes[1][3] = -2;
+    nodes[0][0] = -30;
+    nodes[1][0] = -20;
+    nodes[0][1] = -20;
+    nodes[1][1] = 20;
+    nodes[0][2] = 20;
+    nodes[1][2] = 20;
+    nodes[0][3] = 30;
+    nodes[1][3] = -20;
+
+/*
+  ideal[0][0] = -30;
+  ideal[1][0] = -20;
+  ideal[0][1] = -20;
+  ideal[1][1] = 20;
+  ideal[0][2] = 20;
+  ideal[1][2] = 20;
+  ideal[0][3] = 30;
+  ideal[1][3] = -20;
+  */
 
      velocities[0][0] = 0;
      velocities[1][0] = 0;
