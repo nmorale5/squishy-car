@@ -371,6 +371,7 @@ sw   action
   assign led[15:9] = states;
 
   logic forward, backward;
+  logic 
   always_comb begin
 
       for (int i = 0; i < NUM_WHEEL_SPRINGS; i = i + 1) begin
