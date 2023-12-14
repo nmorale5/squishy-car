@@ -74,7 +74,7 @@ module in_polygon_tb;
         #10;
         for (vcount_in = 0; vcount_in<300; vcount_in = vcount_in + 1) begin
           for (hcount_in = 650; hcount_in<950; hcount_in = hcount_in + 1) begin
-            #10;
+            #20;
           end
         end
         #100;
