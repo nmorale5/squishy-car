@@ -16,6 +16,8 @@ module in_polygon # (
   output logic out
 );
 
+  localparam MULT_DELAY = 3;
+
   logic [MAX_NUM_VERTICES-1:0] intersections;
   logic signed [WORLD_BITS-1:0] Hx [MAX_NUM_VERTICES];
   logic signed [WORLD_BITS-1:0] Hy [MAX_NUM_VERTICES];
@@ -23,7 +25,9 @@ module in_polygon # (
   logic signed [WORLD_BITS-1:0] Ly [MAX_NUM_VERTICES];
   logic signed [2*WORLD_BITS-1:0] mul1 [MAX_NUM_VERTICES];
   logic signed [2*WORLD_BITS-1:0] mul2 [MAX_NUM_VERTICES];
-  logic [MAX_NUM_VERTICES-1:0] in_bounds;
+  logic [MAX_NUM_VERTICES-1:0] in_bounds [MULT_DELAY];
+
+  logic parity;
 
   generate
     for (genvar v = 0; v < MAX_NUM_VERTICES; v = v + 1) begin
@@ -40,26 +44,27 @@ module in_polygon # (
         .B(x_in - Hx[v]),
         .P(mul2[v])
       );
+
+      always_comb begin
+        if (poly_ys_in[v] > poly_ys_in[v + 1 < num_points_in ? v + 1 : 0]) begin
+          Hx[v] = poly_xs_in[v];
+          Hy[v] = poly_ys_in[v];
+          Lx[v] = poly_xs_in[v + 1 < num_points_in ? v + 1 : 0];
+          Ly[v] = poly_ys_in[v + 1 < num_points_in ? v + 1 : 0];
+        end else begin
+          Hx[v] = poly_xs_in[v + 1 < num_points_in ? v + 1 : 0];
+          Hy[v] = poly_ys_in[v + 1 < num_points_in ? v + 1 : 0];
+          Lx[v] = poly_xs_in[v];
+          Ly[v] = poly_ys_in[v];
+        end
+      end
     end
   endgenerate
 
   always_ff @(posedge clk_in) begin
     for (int v = 0; v < MAX_NUM_VERTICES; v = v + 1) begin
-      if (v < num_points_in) begin
-        if (poly_ys_in[v] > poly_ys_in[v + 1 < num_points_in ? v + 1 : 0]) begin
-          Hx[v] <= poly_xs_in[v];
-          Hy[v] <= poly_ys_in[v];
-          Lx[v] <= poly_xs_in[v + 1 < num_points_in ? v + 1 : 0];
-          Ly[v] <= poly_ys_in[v + 1 < num_points_in ? v + 1 : 0];
-        end else begin
-          Hx[v] <= poly_xs_in[v + 1 < num_points_in ? v + 1 : 0];
-          Hy[v] <= poly_ys_in[v + 1 < num_points_in ? v + 1 : 0];
-          Lx[v] <= poly_xs_in[v];
-          Ly[v] <= poly_ys_in[v];
-        end
-        in_bounds[v] <= (Hy[v] > y_in) && (y_in >= Ly[v]);
-        intersections[v] <= in_bounds[v] && (mul1[v] - mul2[v] <= 0);
-      end
+      in_bounds[0][v] <= (Hy[v] > y_in) && (y_in >= Ly[v]);
+      intersections[v] <= in_bounds[MULT_DELAY-1][v] && (mul1[v] - mul2[v] <= 0);
     end
   end
 
@@ -73,6 +78,10 @@ module in_polygon # (
 
   always_ff @(posedge clk_in) begin
     out <= odd_intersections;
+    parity <= parity ^ 1;
+    for (int i=1; i<MULT_DELAY; i=i+1) begin
+      in_bounds[i] <= in_bounds[i-1];
+    end
   end
 
 endmodule
