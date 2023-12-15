@@ -12,8 +12,13 @@ module update_wheel #(NUM_SPRINGS, NUM_NODES, NUM_VERTICES, NUM_OBSTACLES, CONST
   input  wire signed [VELOCITY_SIZE-1:0] velocities_in [1:0][NUM_NODES],
   input  wire [$clog2(NUM_NODES):0] springs [1:0][NUM_SPRINGS],
   input  wire [POSITION_SIZE-1:0] equilibriums [NUM_SPRINGS],
-  input  wire signed [POSITION_SIZE-1:0] axle [1:0], 
-  input  wire signed [VELOCITY_SIZE-1:0] axle_velocity [1:0],
+
+  input  wire signed [FORCE_SIZE-1:0] axle_force_x,
+  input  wire signed [FORCE_SIZE-1:0] axle_force_y,
+  input  wire axle_force_valid,
+  output logic signed [POSITION_SIZE-1:0] axle [1:0], 
+  output logic signed [VELOCITY_SIZE-1:0] axle_velocity [1:0],
+  output logic axle_valid,
   output logic signed [POSITION_SIZE-1:0] node_out_x,
   output logic signed [POSITION_SIZE-1:0] node_out_y,
   output logic node_out_valid,
@@ -94,9 +99,9 @@ assign id_force_y = ideal_forces[1][test_node];
 
 
   //output controls
-  logic [$clog2(NUM_NODES):0] velocity_out_num;
+  logic [$clog2(NUM_NODES):0] velocity_out_num, ;
 
-
+ 
   collisions #(
     .DT(DT),
     .POSITION_SIZE(POSITION_SIZE),
