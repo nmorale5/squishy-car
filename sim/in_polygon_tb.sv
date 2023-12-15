@@ -7,13 +7,13 @@ module in_polygon_tb;
   logic clk_in;
   logic rst_in;
   logic [11:0] pixel_out;
-  logic signed [31:0] hcount_in;
-  logic signed [31:0] vcount_in;
+  logic signed [17:0] hcount_in;
+  logic signed [17:0] vcount_in;
 
   localparam MAX_NUM_VERTICES = 8;
 
-  logic signed [31:0] polygon_xs [MAX_NUM_VERTICES];
-  logic signed [31:0] polygon_ys [MAX_NUM_VERTICES];
+  logic signed [17:0] polygon_xs [MAX_NUM_VERTICES];
+  logic signed [17:0] polygon_ys [MAX_NUM_VERTICES];
   logic [$clog2(MAX_NUM_VERTICES+1)-1:0] polygon_num_sides;
 
   logic in_polygon_out;
@@ -43,7 +43,8 @@ module in_polygon_tb;
   assign polygon_num_sides = 5;
 
   in_polygon # (
-    .MAX_NUM_VERTICES(MAX_NUM_VERTICES)
+    .MAX_NUM_VERTICES(MAX_NUM_VERTICES),
+    .WORLD_BITS(18)
   ) uut (
     .clk_in(clk_in),
     .x_in(hcount_in),
@@ -73,7 +74,7 @@ module in_polygon_tb;
         #10;
         for (vcount_in = 0; vcount_in<300; vcount_in = vcount_in + 1) begin
           for (hcount_in = 650; hcount_in<950; hcount_in = hcount_in + 1) begin
-            #10;
+            #20;
           end
         end
         #100;
