@@ -10,7 +10,7 @@ module manage_car #(DT, NUM_WHEEL_NODES, NUM_BODY_NODES, NUM_WHEEL_SPRINGS, NUM_
   input  wire [$clog2(NUM_WHEEL_NODES):0] wheel_springs [1:0][NUM_WHEEL_SPRINGS],
   input  wire [$clog2(NUM_BODY_NODES):0] body_springs [1:0][NUM_BODY_SPRINGS],
   input  wire [POSITION_SIZE-1:0] wheel_equilibriums [NUM_WHEEL_SPRINGS],
-  input  wire [POSITION_SIZE-1:0] body_equilibriums [NUM_WHEEL_SPRINGS],
+  input  wire [POSITION_SIZE-1:0] body_equilibriums [NUM_BODY_SPRINGS],
   input  wire signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES],
   input  wire [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES], //array of num_vertices
   input  wire [$clog2(NUM_OBSTACLES):0] num_obstacles,
@@ -69,20 +69,19 @@ module manage_car #(DT, NUM_WHEEL_NODES, NUM_BODY_NODES, NUM_WHEEL_SPRINGS, NUM_
     logic [5:0] wheel_states;
     assign states = wheel_states;
 
-/*
+logic com_start;
+
+
   center_of_mass #(POSITION_SIZE, NUM_BODY_NODES) com (
     .clk_in(clk_in),
     .rst_in(rst_in),
     .x_in(body_new_node_x),
     .y_in(body_new_node_y),
-    .valid_in(body_node_valid),
+    .valid_in(com_start),
     .tabulate_in(body_nodes_done),
     .x_out(com_x_out),
     .y_out(com_y_out),
-    .valid_out(com_out_valid)); */
-
-    assign com_x_out = 0;
-    assign com_y_out = 0;
+    .valid_out(com_out_valid)); 
 
   update_wheel #(
     .NUM_SPRINGS(NUM_WHEEL_SPRINGS),
@@ -176,6 +175,8 @@ always_comb begin
     logic [3:0] dones;
     assign all_done = & dones;
 
+    logic laxle_force_valid, raxle_force_valid;
+
 
   always_ff @(posedge clk_in) begin
     if (rst_in) begin //initialize everything
@@ -217,13 +218,16 @@ always_comb begin
 
         if (axle_valid) begin
             if (wheel_choice == 0) begin
-                left_axle_force_x <= axle_force_x;
-                left_axle_force_y <= axle_force_y;
+                laxle_force_valid <= 1;
             end else begin
-                right_axle_force_x <= axle_force_x;
-                right_axle_force_y <= axle_force_y;
+                raxle_force_valid <= 1;
             end
+        end else begin
+                laxle_force_valid <= 0;
+                raxle_force_valid <= 0;
+
         end
+
 
       if (wheel_node_valid == 1) begin
         wheel_node_count <= wheel_node_count + 1;
@@ -288,6 +292,52 @@ always_comb begin
   end
 
 
-
+update_body #(
+  .NUM_SPRINGS(NUM_BODY_SPRINGS),
+  .NUM_NODES(NUM_BODY_NODES),
+  .NUM_VERTICES(NUM_VERTICES),
+  .NUM_OBSTACLES(NUM_OBSTACLES),
+  .CONSTANT_SIZE(CONSTANT_SIZE),
+  .POSITION_SIZE(POSITION_SIZE),
+  .VELOCITY_SIZE(VELOCITY_SIZE),
+  .FORCE_SIZE(FORCE_SIZE),
+  .GRAVITY(GRAVITY),
+  .DT(DT)
+) body_instance (
+  .clk_in(clk_in),
+  .rst_in(rst_in),
+  .begin_in(begin_in),
+  .constants(body_constants),
+  .com_x(com_x_out),
+  .com_y(com_y_out),
+  .ideal(body_ideal),
+  .obstacles(obstacles),
+  .all_num_vertices(all_num_vertices),
+  .num_obstacles(num_obstacles),
+  .nodes_in(body_nodes),
+  .velocities_in(body_velocities),
+  .springs(body_springs),
+  .equilibriums(body_equilibriums),
+  .laxle_force_x(axle_force_x),
+  .laxle_force_y(axle_force_y),
+  .laxle_force_valid(laxle_force_valid),
+  .raxle_force_x(axle_force_x),
+  .raxle_force_y(axle_force_y),
+  .raxle_force_valid(raxle_force_valid),
+  .laxle(left_axle),
+  .laxle_velocity(left_axle_velocity),
+  .laxle_valid(laxle_valid),
+  .raxle(right_axle),
+  .raxle_velocity(right_axle_velocity),
+  .raxle_valid(raxle_valid),
+  .node_out_x(body_new_node_x),
+  .node_out_y(body_new_node_y),
+  .node_out_valid(body_node_valid),
+  .node_out_done(start_com),
+  .velocity_out_x(body_new_velocity_x),
+  .velocity_out_y(body_new_velocity_y),
+  .velocity_out_valid(body_velocity_valid),
+  .result_out(body_result)
+);
 
 endmodule

@@ -1,4 +1,4 @@
-module update_wheel #(NUM_SPRINGS, NUM_NODES, NUM_VERTICES, NUM_OBSTACLES, CONSTANT_SIZE, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE, TORQUE, GRAVITY,DT)(
+module update_wheel #(NUM_SPRINGS, NUM_NODES, NUM_VERTICES, NUM_OBSTACLES, CONSTANT_SIZE, POSITION_SIZE, VELOCITY_SIZE, FORCE_SIZE, GRAVITY,DT, TORQUE)(
   input  wire clk_in,
   input  wire rst_in,
   input  wire begin_in,
@@ -30,6 +30,7 @@ module update_wheel #(NUM_SPRINGS, NUM_NODES, NUM_VERTICES, NUM_OBSTACLES, CONST
   output logic result_out
   
 );
+
 //for testing
 /*
 logic [$clog2(NUM_VERTICES):0] nv;

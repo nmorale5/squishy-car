@@ -280,7 +280,7 @@ module top_level(
   logic [10:0] update_count = 0;
 
 
-  assign begin_update = got_all_obstacles && (update_count == 0);
+  assign begin_update = got_all_obstacles;
 
   logic begin_update;
   logic [CONSTANT_SIZE-1:0] wheel_constants [4];
@@ -291,7 +291,7 @@ module top_level(
   logic [$clog2(NUM_WHEEL_NODES):0] wheel_springs [1:0][NUM_WHEEL_SPRINGS];
   logic [$clog2(NUM_BODY_NODES):0] body_springs [1:0][NUM_BODY_SPRINGS];
   logic [POSITION_SIZE-1:0] wheel_equilibriums [NUM_WHEEL_SPRINGS];
-  logic [POSITION_SIZE-1:0] body_equilibriums [NUM_WHEEL_SPRINGS];
+  logic [POSITION_SIZE-1:0] body_equilibriums [NUM_BODY_SPRINGS];
   logic signed [POSITION_SIZE-1:0] obstacles [1:0][NUM_VERTICES][NUM_OBSTACLES];
   logic [$clog2(NUM_VERTICES):0] all_num_vertices [NUM_OBSTACLES]; //might be replaced
   logic [$clog2(NUM_OBSTACLES):0] num_obstacles; //might get replaced
@@ -381,7 +381,7 @@ sw   action
   assign led[15:9] = states;
 
   logic forward, backward;
-  logic 
+   
   always_comb begin
 
       for (int i = 0; i < NUM_WHEEL_SPRINGS; i = i + 1) begin
